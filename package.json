@@ -15,9 +15,12 @@
     "@mui/icons-material": "latest",
     "@mui/material": "latest",
     "@mui/material-nextjs": "latest",
+    "@tailwindcss/postcss": "^4.1.18",
     "next": "^16.0.7",
+    "postcss": "^8.5.6",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "tailwindcss": "^4.1.18"
   },
   "devDependencies": {
     "@types/node": "latest",
