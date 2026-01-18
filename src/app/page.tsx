@@ -9,27 +9,45 @@ import TransactionDialog from '@/components/TransactionDialog';
 import { db } from '@/db/db';
 import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
+import ConfirmDialog from '@/components/ConfirmDialog';
+import { SnackbarProvider, useSnackbar } from '@/components/AppSnackbar';
 
-export default function Home() {
+function DashboardContent() {
   const [openTransaction, setOpenTransaction] = React.useState(false);
+  const [confirmOpen, setConfirmOpen] = React.useState(false);
+  const [confirmConfig, setConfirmConfig] = React.useState({ title: '', content: '', action: () => { } });
+
+  const { showSnackbar } = useSnackbar();
 
   const seedData = async () => {
     try {
       console.log("Seeding data...");
-      // Check if data exists
       const count = await db.categoryGroups.count();
       if (count > 0) {
-        if (!window.confirm("Data already exists. Overwrite?")) return;
-        await db.transaction('rw', [db.categoryGroups, db.categories, db.accounts, db.transactions, db.budgeted], async () => {
-          await db.categoryGroups.clear();
-          await db.categories.clear();
-          await db.accounts.clear();
-          await db.transactions.clear();
-          await db.budgeted.clear();
+        setConfirmConfig({
+          title: "Overwrite Data?",
+          content: "Data already exists. This will overwrite everything.",
+          action: performSeed
         });
+        setConfirmOpen(true);
+        return;
       }
+      await performSeed();
+    } catch (e) {
+      console.error("Seed Check Failed", e);
+      showSnackbar("Seed Check Failed: " + e);
+    }
+  };
 
-      await db.transaction('rw', [db.categoryGroups, db.categories, db.accounts, db.transactions], async () => {
+  const performSeed = async () => {
+    try {
+      await db.transaction('rw', [db.categoryGroups, db.categories, db.accounts, db.transactions, db.budgeted], async () => {
+        await db.categoryGroups.clear();
+        await db.categories.clear();
+        await db.accounts.clear();
+        await db.transactions.clear();
+        await db.budgeted.clear();
+
         // Groups
         const g1 = uuidv4();
         const g2 = uuidv4();
@@ -60,21 +78,26 @@ export default function Home() {
           account_id: acctId,
           amount: 100000,
           date: format(new Date(), 'yyyy-MM-dd')
-          // No category_id implies "Ready to Assign"
         });
       });
-      console.log("Seeding complete");
-      alert("Seed Data Successful!");
-      window.location.reload();
+      showSnackbar("Seed Data Successful!");
+      setTimeout(() => window.location.reload(), 1000);
     } catch (e) {
       console.error("Seed Failed", e);
-      alert("Seed Failed: " + e);
+      showSnackbar("Seed Failed: " + e);
     }
   };
 
-  const resetData = async () => {
-    // if (!window.confirm("Are you sure? This will delete ALL data.")) return;
+  const confirmReset = () => {
+    setConfirmConfig({
+      title: "Reset Data?",
+      content: "Are you sure? This will delete ALL data vertically forever (a long time).",
+      action: performReset
+    });
+    setConfirmOpen(true);
+  };
 
+  const performReset = async () => {
     try {
       await db.transaction('rw', [db.categoryGroups, db.categories, db.accounts, db.transactions, db.budgeted], async () => {
         await db.categoryGroups.clear();
@@ -83,11 +106,11 @@ export default function Home() {
         await db.transactions.clear();
         await db.budgeted.clear();
       });
-      alert("Reset Successful");
-      window.location.reload();
+      showSnackbar("Reset Successful");
+      setTimeout(() => window.location.reload(), 1000);
     } catch (e) {
       console.error("Reset Failed", e);
-      alert("Reset Failed: " + e);
+      showSnackbar("Reset Failed: " + e);
     }
   };
 
@@ -98,12 +121,13 @@ export default function Home() {
           My Budget
         </Typography>
         <Box>
-          <Button color="error" onClick={resetData} sx={{ mr: 1 }}>
+          <Button color="error" onClick={confirmReset} sx={{ mr: 1 }}>
             Reset Data
           </Button>
-          <Button variant="outlined" size="small" onClick={seedData}>
+          <Button variant="outlined" size="small" onClick={seedData} sx={{ mr: 1 }}>
             Seed Initial Data
           </Button>
+          <ModeSwitch />
         </Box>
       </Box>
 
@@ -134,6 +158,30 @@ export default function Home() {
         open={openTransaction}
         onClose={() => setOpenTransaction(false)}
       />
+
+      <ConfirmDialog
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        title={confirmConfig.title}
+        content={confirmConfig.content}
+        onConfirm={confirmConfig.action}
+        isDestructive={true}
+      />
     </Container>
+  );
+}
+
+import { UndoProvider } from '@/components/UndoProvider';
+import UndoFloatingButton from '@/components/UndoFloatingButton';
+import ModeSwitch from '@/components/ModeSwitch';
+
+export default function Home() {
+  return (
+    <UndoProvider>
+      <SnackbarProvider>
+        <DashboardContent />
+        <UndoFloatingButton />
+      </SnackbarProvider>
+    </UndoProvider>
   );
 }

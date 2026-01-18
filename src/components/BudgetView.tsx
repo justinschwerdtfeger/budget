@@ -15,14 +15,24 @@ import {
     TableRow,
     IconButton,
     Button,
-    TextField
+    TextField,
+    Menu,
+    MenuItem,
+    ListItemIcon,
+    ListItemText
 } from '@mui/material';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import AddIcon from '@mui/icons-material/Add';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { format } from 'date-fns';
 import CategoryDialog from './CategoryDialog';
 import { v4 as uuidv4 } from 'uuid';
+import { useSnackbar } from './AppSnackbar';
+import ConfirmDialog from './ConfirmDialog';
+import { useUndo } from './UndoProvider';
 
 export default function BudgetView() {
     const month = format(new Date(), 'yyyy-MM');
@@ -32,17 +42,57 @@ export default function BudgetView() {
     const [dialogOpen, setDialogOpen] = React.useState(false);
     const [dialogType, setDialogType] = React.useState<'group' | 'category'>('group');
     const [dialogParentId, setDialogParentId] = React.useState<string | undefined>(undefined);
+    const [editItem, setEditItem] = React.useState<{ id: string, name: string } | undefined>(undefined);
+
+    // Confirm Dialog State
+    const [confirmOpen, setConfirmOpen] = React.useState(false);
+    const [confirmConfig, setConfirmConfig] = React.useState({ title: '', content: '', action: () => { } });
+
+    const { showSnackbar } = useSnackbar();
+    const { registerUndo } = useUndo();
 
     const handleAddGroup = () => {
         setDialogType('group');
         setDialogParentId(undefined);
+        setEditItem(undefined);
         setDialogOpen(true);
     };
 
     const handleAddCategory = (groupId: string) => {
         setDialogType('category');
         setDialogParentId(groupId);
+        setEditItem(undefined);
         setDialogOpen(true);
+    };
+
+    const handleEdit = (type: 'group' | 'category', item: { id: string, name: string }, parentId?: string) => {
+        setDialogType(type);
+        setDialogParentId(parentId);
+        setEditItem(item);
+        setDialogOpen(true);
+    };
+
+    const handleDelete = (type: 'group' | 'category', item: any) => {
+        setConfirmConfig({
+            title: `Delete ${type === 'group' ? 'Group' : 'Category'}?`,
+            content: `Delete "${item.name}"? This cannot be undone properly if transactions exist (logic pending).`,
+            action: async () => {
+                if (type === 'group') {
+                    await db.categoryGroups.delete(item.id);
+                    registerUndo(`Delete Group ${item.name}`, async () => {
+                        await db.categoryGroups.add(item);
+                    });
+                    showSnackbar("Group deleted");
+                } else {
+                    await db.categories.delete(item.id);
+                    registerUndo(`Delete Category ${item.name}`, async () => {
+                        await db.categories.add(item);
+                    });
+                    showSnackbar("Category deleted");
+                }
+            }
+        });
+        setConfirmOpen(true);
     };
 
     // Calculate Ready to Assign
@@ -75,11 +125,21 @@ export default function BudgetView() {
                             <TableCell align="right">ASSIGNED</TableCell>
                             <TableCell align="right">ACTIVITY</TableCell>
                             <TableCell align="right">AVAILABLE</TableCell>
+                            <TableCell padding="checkbox" />
                         </TableRow>
                     </TableHead>
                     <TableBody>
                         {groups?.map((group) => (
-                            <GroupRow key={group.id} group={group} month={month} onAddCategory={handleAddCategory} />
+                            <GroupRow
+                                key={group.id}
+                                group={group}
+                                month={month}
+                                onAddCategory={handleAddCategory}
+                                onEdit={(item) => handleEdit('group', item)}
+                                onDelete={(item) => handleDelete('group', item)}
+                                onEditCategory={(item, parentId) => handleEdit('category', item, parentId)}
+                                onDeleteCategory={(item) => handleDelete('category', item)}
+                            />
                         ))}
                     </TableBody>
                 </Table>
@@ -94,6 +154,16 @@ export default function BudgetView() {
                 onClose={() => setDialogOpen(false)}
                 type={dialogType}
                 parentId={dialogParentId}
+                editItem={editItem}
+            />
+
+            <ConfirmDialog
+                open={confirmOpen}
+                onClose={() => setConfirmOpen(false)}
+                title={confirmConfig.title}
+                content={confirmConfig.content}
+                onConfirm={confirmConfig.action}
+                isDestructive={true}
             />
         </Box>
     );
@@ -101,19 +171,35 @@ export default function BudgetView() {
 
 function BudgetInput({ categoryId, month, initialAmount }: { categoryId: string, month: string, initialAmount: number }) {
     const [amount, setAmount] = React.useState((initialAmount / 100).toFixed(2));
+    const { showSnackbar } = useSnackbar();
+    const { registerUndo } = useUndo();
 
     const handleBlur = async () => {
         const cents = Math.round(parseFloat(amount) * 100);
+        // Don't save if no change (optimization + prevents snackbar spam)
+        if (cents === initialAmount) return;
+
         const existing = await db.budgeted.where({ category_id: categoryId, month }).first();
+
         if (existing) {
+            const previousAmount = existing.amount;
             await db.budgeted.update(existing.id, { amount: cents });
+            registerUndo(`Budget Assign $${previousAmount / 100}`, async () => {
+                await db.budgeted.update(existing.id, { amount: previousAmount });
+            });
+            showSnackbar("Budget assigned");
         } else {
+            const newId = uuidv4();
             await db.budgeted.add({
-                id: uuidv4(),
+                id: newId,
                 category_id: categoryId,
                 month,
                 amount: cents
             });
+            registerUndo("Budget Assignment", async () => {
+                await db.budgeted.delete(newId);
+            });
+            showSnackbar("Budget assigned");
         }
     };
 
@@ -135,8 +221,45 @@ function BudgetInput({ categoryId, month, initialAmount }: { categoryId: string,
     );
 }
 
-function CategoryRow({ category, month }: { category: Category; month: string }) {
-    // Fetch transactions for this category in this month (Y-m)
+function RowMenu({ onEdit, onDelete }: { onEdit: () => void, onDelete: () => void }) {
+    const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
+    const open = Boolean(anchorEl);
+    const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+        setAnchorEl(event.currentTarget);
+    };
+    const handleClose = () => {
+        setAnchorEl(null);
+    };
+
+    return (
+        <>
+            <IconButton size="small" onClick={handleClick}>
+                <MoreVertIcon fontSize="small" />
+            </IconButton>
+            <Menu
+                anchorEl={anchorEl}
+                open={open}
+                onClose={handleClose}
+            >
+                <MenuItem onClick={() => { handleClose(); onEdit(); }}>
+                    <ListItemIcon><EditIcon fontSize="small" /></ListItemIcon>
+                    <ListItemText>Edit</ListItemText>
+                </MenuItem>
+                <MenuItem onClick={() => { handleClose(); onDelete(); }}>
+                    <ListItemIcon><DeleteIcon fontSize="small" /></ListItemIcon>
+                    <ListItemText>Delete</ListItemText>
+                </MenuItem>
+            </Menu>
+        </>
+    );
+}
+
+function CategoryRow({ category, month, onEdit, onDelete }: {
+    category: Category;
+    month: string;
+    onEdit: (item: Category) => void;
+    onDelete: (item: Category) => void;
+}) {
     const activity = useLiveQuery(async () => {
         const txs = await db.transactions
             .where('category_id').equals(category.id)
@@ -159,7 +282,7 @@ function CategoryRow({ category, month }: { category: Category; month: string })
                     categoryId={category.id}
                     month={month}
                     initialAmount={budgeted?.amount || 0}
-                    key={budgeted?.amount} // Force re-render on external update
+                    key={budgeted?.amount}
                 />
             </TableCell>
             <TableCell align="right" sx={{ color: activity < 0 ? 'error.main' : 'inherit' }}>
@@ -168,11 +291,22 @@ function CategoryRow({ category, month }: { category: Category; month: string })
             <TableCell align="right" sx={{ fontWeight: 'bold' }}>
                 ${(((budgeted?.amount || 0) + activity) / 100).toFixed(2)}
             </TableCell>
+            <TableCell align="right" padding="none">
+                <RowMenu onEdit={() => onEdit(category)} onDelete={() => onDelete(category)} />
+            </TableCell>
         </TableRow>
     );
 }
 
-function GroupRow({ group, month, onAddCategory }: { group: CategoryGroup; month: string; onAddCategory: (groupId: string) => void }) {
+function GroupRow({ group, month, onAddCategory, onEdit, onDelete, onEditCategory, onDeleteCategory }: {
+    group: CategoryGroup;
+    month: string;
+    onAddCategory: (groupId: string) => void;
+    onEdit: (item: CategoryGroup) => void;
+    onDelete: (item: CategoryGroup) => void;
+    onEditCategory: (item: Category, parentId: string) => void;
+    onDeleteCategory: (item: Category) => void;
+}) {
     const [open, setOpen] = React.useState(true);
     const categories = useLiveQuery(() =>
         db.categories.where('group_id').equals(group.id).toArray()
@@ -197,14 +331,24 @@ function GroupRow({ group, month, onAddCategory }: { group: CategoryGroup; month
                                 {group.name}
                             </Typography>
                         </Box>
-                        <IconButton size="small" onClick={() => onAddCategory(group.id)}>
-                            <AddIcon fontSize="small" />
-                        </IconButton>
+                        <Box>
+                            <IconButton size="small" onClick={() => onAddCategory(group.id)}>
+                                <AddIcon fontSize="small" />
+                            </IconButton>
+                            <RowMenu onEdit={() => onEdit(group)} onDelete={() => onDelete(group)} />
+                        </Box>
                     </Box>
                 </TableCell>
+                <TableCell />
             </TableRow>
             {open && categories.map(cat => (
-                <CategoryRow key={cat.id} category={cat} month={month} />
+                <CategoryRow
+                    key={cat.id}
+                    category={cat}
+                    month={month}
+                    onEdit={(item) => onEditCategory(item, group.id)}
+                    onDelete={onDeleteCategory}
+                />
             ))}
         </React.Fragment>
     );

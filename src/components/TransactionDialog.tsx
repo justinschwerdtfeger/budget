@@ -16,6 +16,8 @@ import { db } from '@/db/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
+import { useSnackbar } from './AppSnackbar';
+import { useUndo } from './UndoProvider';
 
 interface TransactionDialogProps {
     open: boolean;
@@ -25,13 +27,15 @@ interface TransactionDialogProps {
 export default function TransactionDialog({ open, onClose }: TransactionDialogProps) {
     const accounts = useLiveQuery(() => db.accounts.toArray());
     const categories = useLiveQuery(() => db.categories.toArray());
+    const { showSnackbar } = useSnackbar();
+    const { registerUndo } = useUndo();
 
     const [formData, setFormData] = React.useState({
         account_id: '',
         category_id: '',
         payee: '',
         amount: '',
-        date: '' // Initialize empty to avoid server/client mismatch
+        date: ''
     });
 
     React.useEffect(() => {
@@ -55,26 +59,42 @@ export default function TransactionDialog({ open, onClose }: TransactionDialogPr
         }
 
         try {
-            // simplistic amount parsing
             const amountInCents = Math.round(parseFloat(formData.amount) * 100);
+            const transactionId = uuidv4();
+            const signedAmount = -Math.abs(amountInCents); // Force expense
 
             await db.transaction('rw', db.accounts, db.transactions, async () => {
                 await db.transactions.add({
-                    id: uuidv4(),
+                    id: transactionId,
                     account_id: formData.account_id,
                     category_id: formData.category_id || undefined,
                     payee: formData.payee,
-                    amount: -Math.abs(amountInCents), // Force expense for now
+                    amount: signedAmount,
                     date: formData.date
                 });
 
                 const acct = await db.accounts.get(formData.account_id);
                 if (acct) {
                     await db.accounts.update(formData.account_id, {
-                        balance: acct.balance + (-Math.abs(amountInCents))
+                        balance: acct.balance + signedAmount
                     });
                 }
             });
+
+            showSnackbar("Transaction added");
+            registerUndo("Add Transaction", async () => {
+                await db.transaction('rw', db.accounts, db.transactions, async () => {
+                    await db.transactions.delete(transactionId);
+                    const acct = await db.accounts.get(formData.account_id);
+                    if (acct) {
+                        // Reverse the signedAmount
+                        await db.accounts.update(formData.account_id, {
+                            balance: acct.balance - signedAmount
+                        });
+                    }
+                });
+            });
+
             console.log("Transaction saved");
             onClose();
         } catch (error) {

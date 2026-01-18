@@ -13,14 +13,14 @@ export default function ModeSwitch() {
     return null;
   }
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        justifyContent: 'flex-end',
-        mt: 1,
-        p: 1,
-      }}
-    >
+    // <Box
+    //   sx={{
+    //     display: 'flex',
+    //     justifyContent: 'flex-end',
+    //     mt: 1,
+    //     p: 1,
+    //   }}
+    // >
       <FormControl>
         <InputLabel id="mode-select-label">Theme</InputLabel>
         <Select
@@ -35,6 +35,6 @@ export default function ModeSwitch() {
           <MenuItem value="dark">Dark</MenuItem>
         </Select>
       </FormControl>
-    </Box>
+    // </Box>
   );
 }
