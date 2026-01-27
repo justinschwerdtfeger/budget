@@ -35,8 +35,19 @@ import ConfirmDialog from './ConfirmDialog';
 import { useUndo } from './UndoProvider';
 
 export default function BudgetView() {
-    const month = format(new Date(), 'yyyy-MM');
-    const groups = useLiveQuery(() => db.categoryGroups.orderBy('order').toArray());
+    const periods = useLiveQuery(() => db.budgetPeriods.orderBy('start').reverse().toArray());
+    const activePeriod = periods?.find(p => !p.end);
+
+    // Default to active period if no selection
+    const [selectedPeriodId, setSelectedPeriodId] = React.useState<string>('');
+
+    React.useEffect(() => {
+        if (activePeriod && !selectedPeriodId) {
+            setSelectedPeriodId(activePeriod.id);
+        }
+    }, [activePeriod, selectedPeriodId]);
+
+    const viewPeriod = periods?.find(p => p.id === selectedPeriodId);
 
     // Dialog State
     const [dialogOpen, setDialogOpen] = React.useState(false);
@@ -75,7 +86,7 @@ export default function BudgetView() {
     const handleDelete = (type: 'group' | 'category', item: any) => {
         setConfirmConfig({
             title: `Delete ${type === 'group' ? 'Group' : 'Category'}?`,
-            content: `Delete "${item.name}"? This cannot be undone properly if transactions exist (logic pending).`,
+            content: `Delete "${item.name}"? This cannot be undone properly if transactions exist.`,
             action: async () => {
                 if (type === 'group') {
                     await db.categoryGroups.delete(item.id);
@@ -95,25 +106,112 @@ export default function BudgetView() {
         setConfirmOpen(true);
     };
 
-    // Calculate Ready to Assign
-    const inflows = useLiveQuery(async () => {
-        const txs = await db.transactions.filter(t => !t.category_id).toArray();
-        return txs.reduce((acc, t) => acc + t.amount, 0);
-    });
+    const handleCloseBudget = () => {
+        if (!activePeriod) return;
+        setConfirmConfig({
+            title: "Close Budget Period?",
+            content: "This will finalize the current budget, take a snapshot of all values, and start a new period. Unspent 'Available' funds will need to be re-assigned in the new period (or you can view them in history).",
+            action: async () => {
+                await db.transaction('rw', db.budgetPeriods, db.budgetSnapshots, db.categories, db.budgeted, db.transactions, async () => {
+                    const now = format(new Date(), 'yyyy-MM-dd');
 
-    const allBudgeted = useLiveQuery(async () => {
-        const budgetedItems = await db.budgeted.where('month').equals(month).toArray();
-        return budgetedItems.reduce((acc, b) => acc + b.amount, 0);
-    });
+                    // 1. Snapshot all categories
+                    const allCategories = await db.categories.toArray();
+                    for (const cat of allCategories) {
+                        // Calculate metrics for this period
+                        const budgetItem = await db.budgeted.where({ period_id: activePeriod.id, category_id: cat.id }).first();
+                        const assigned = budgetItem?.amount || 0;
 
-    const readyToAssign = (inflows || 0) - (allBudgeted || 0);
+                        const txs = await db.transactions
+                            .where('category_id').equals(cat.id)
+                            .filter(t => t.date >= activePeriod.start) // Activity since start
+                            .toArray();
+                        const activity = txs.reduce((acc, t) => acc + t.amount, 0);
+
+                        const available = assigned + activity;
+
+                        await db.budgetSnapshots.add({
+                            id: uuidv4(),
+                            period_id: activePeriod.id,
+                            category_id: cat.id,
+                            assigned,
+                            activity,
+                            available
+                        });
+                    }
+
+                    // 2. Close current period
+                    await db.budgetPeriods.update(activePeriod.id, { end: now });
+
+                    // 3. Start new period
+                    const newPeriodId = uuidv4();
+                    await db.budgetPeriods.add({
+                        id: newPeriodId,
+                        start: now,
+                        end: null
+                    });
+                });
+                showSnackbar("Budget Closed & New Period Started");
+            }
+        });
+        setConfirmOpen(true);
+    };
+
+    const groups = useLiveQuery(() => db.categoryGroups.orderBy('order').toArray());
+
+    // Calculate Ready to Assign (Only meaningful for Active Period logic, or snapshot?)
+    // For History, we might need to snapshot RTA too, or just hide it.
+    // For Active: RTA = Total Inflows (Uncategorized) - Total Budgeted (In Current Period)
+    // Note: RTA should logically carry over?
+    // User requested: "money only shows up in available"
+    // Ideally, "Ready to Assign" is global.
+    const readyToAssign = useLiveQuery(async () => {
+        if (!viewPeriod) return 0;
+
+        // Global RTA logic:
+        // Total Income (Ever) - Total Budgeted (Ever, across all periods)
+        // This is easiest to ensure money isn't lost between periods.
+        const allInflows = await db.transactions.filter(t => !t.category_id).toArray();
+        const totalIncome = allInflows.reduce((acc, t) => acc + t.amount, 0);
+
+        const allBudgetedItems = await db.budgeted.toArray();
+        const totalBudgeted = allBudgetedItems.reduce((acc, b) => acc + b.amount, 0);
+
+        return totalIncome - totalBudgeted;
+    }, [viewPeriod]);
+
+    if (!viewPeriod) return <Box sx={{ p: 2 }}>No Budget Period Found. Please Seed Data.</Box>;
+    const isHistory = !!viewPeriod.end;
 
     return (
         <Box sx={{ width: '100%', mt: 2 }}>
-            <Paper elevation={1} sx={{ p: 2, mb: 2, bgcolor: 'primary.light', color: 'primary.contrastText' }}>
-                <Typography variant="h6" align="center">Ready to Assign</Typography>
+            <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <TextField
+                    select
+                    label="Budget Period"
+                    value={selectedPeriodId}
+                    onChange={(e) => setSelectedPeriodId(e.target.value)}
+                    size="small"
+                    sx={{ width: 200 }}
+                >
+                    {periods?.map(p => (
+                        <MenuItem key={p.id} value={p.id}>
+                            {p.start} {p.end ? ` - ${p.end}` : '(Current)'}
+                        </MenuItem>
+                    ))}
+                </TextField>
+
+                {!isHistory && (
+                    <Button variant="outlined" color="secondary" onClick={handleCloseBudget}>
+                        Close Budget
+                    </Button>
+                )}
+            </Box>
+
+            <Paper elevation={1} sx={{ p: 2, mb: 2, bgcolor: isHistory ? 'grey.300' : 'primary.light', color: isHistory ? 'text.primary' : 'primary.contrastText' }}>
+                <Typography variant="h6" align="center">{isHistory ? 'Historical RTA (Calculated)' : 'Ready to Assign'}</Typography>
                 <Typography variant="h3" align="center" sx={{ fontWeight: 'bold' }}>
-                    ${(readyToAssign / 100).toFixed(2)}
+                    ${((readyToAssign || 0) / 100).toFixed(2)}
                 </Typography>
             </Paper>
 
@@ -123,7 +221,6 @@ export default function BudgetView() {
                         <TableRow>
                             <TableCell>CATEGORY</TableCell>
                             <TableCell align="right">ASSIGNED</TableCell>
-                            <TableCell align="right">ACTIVITY</TableCell>
                             <TableCell align="right">AVAILABLE</TableCell>
                             <TableCell padding="checkbox" />
                         </TableRow>
@@ -133,7 +230,8 @@ export default function BudgetView() {
                             <GroupRow
                                 key={group.id}
                                 group={group}
-                                month={month}
+                                period={viewPeriod}
+                                isHistory={isHistory}
                                 onAddCategory={handleAddCategory}
                                 onEdit={(item) => handleEdit('group', item)}
                                 onDelete={(item) => handleDelete('group', item)}
@@ -145,9 +243,11 @@ export default function BudgetView() {
                 </Table>
             </TableContainer>
 
-            <Button startIcon={<AddIcon />} sx={{ mt: 2 }} onClick={handleAddGroup}>
-                Add Category Group
-            </Button>
+            {!isHistory && (
+                <Button startIcon={<AddIcon />} sx={{ mt: 2 }} onClick={handleAddGroup}>
+                    Add Category Group
+                </Button>
+            )}
 
             <CategoryDialog
                 open={dialogOpen}
@@ -169,17 +269,22 @@ export default function BudgetView() {
     );
 }
 
-function BudgetInput({ categoryId, month, initialAmount }: { categoryId: string, month: string, initialAmount: number }) {
+function BudgetInput({ categoryId, periodId, initialAmount, disabled }: { categoryId: string, periodId: string, initialAmount: number, disabled: boolean }) {
     const [amount, setAmount] = React.useState((initialAmount / 100).toFixed(2));
     const { showSnackbar } = useSnackbar();
     const { registerUndo } = useUndo();
 
+    // Reset local state if props change (e.g. switching periods)
+    React.useEffect(() => {
+        setAmount((initialAmount / 100).toFixed(2));
+    }, [initialAmount, periodId]);
+
     const handleBlur = async () => {
+        if (disabled) return;
         const cents = Math.round(parseFloat(amount) * 100);
-        // Don't save if no change (optimization + prevents snackbar spam)
         if (cents === initialAmount) return;
 
-        const existing = await db.budgeted.where({ category_id: categoryId, month }).first();
+        const existing = await db.budgeted.where({ period_id: periodId, category_id: categoryId }).first();
 
         if (existing) {
             const previousAmount = existing.amount;
@@ -192,8 +297,8 @@ function BudgetInput({ categoryId, month, initialAmount }: { categoryId: string,
             const newId = uuidv4();
             await db.budgeted.add({
                 id: newId,
+                period_id: periodId,
                 category_id: categoryId,
-                month,
                 amount: cents
             });
             registerUndo("Budget Assignment", async () => {
@@ -208,6 +313,7 @@ function BudgetInput({ categoryId, month, initialAmount }: { categoryId: string,
             variant="standard"
             type="number"
             value={amount}
+            disabled={disabled}
             onChange={(e) => setAmount(e.target.value)}
             onBlur={handleBlur}
             onKeyDown={(e) => {
@@ -254,23 +360,37 @@ function RowMenu({ onEdit, onDelete }: { onEdit: () => void, onDelete: () => voi
     );
 }
 
-function CategoryRow({ category, month, onEdit, onDelete }: {
+function CategoryRow({ category, period, isHistory, onEdit, onDelete }: {
     category: Category;
-    month: string;
+    period: { id: string, start: string, end: string | null };
+    isHistory: boolean;
     onEdit: (item: Category) => void;
     onDelete: (item: Category) => void;
 }) {
-    const activity = useLiveQuery(async () => {
-        const txs = await db.transactions
-            .where('category_id').equals(category.id)
-            .filter(t => t.date.startsWith(month))
-            .toArray();
-        return txs.reduce((acc, t) => acc + t.amount, 0);
-    }, [category.id, month]) || 0;
+    // If History: Fetch from Snapshots
+    // If Active: Calculate Live
 
-    const budgeted = useLiveQuery(() =>
-        db.budgeted.where({ category_id: category.id, month }).first()
-        , [category.id, month]);
+    const data = useLiveQuery(async () => {
+        if (isHistory) {
+            return await db.budgetSnapshots.where({ period_id: period.id, category_id: category.id }).first();
+        } else {
+            // Active Logic
+            const budgetItem = await db.budgeted.where({ period_id: period.id, category_id: category.id }).first();
+            const startStr = period.start;
+
+            // Activity = Sum of transactions for this category >= period start
+            const txs = await db.transactions
+                .where('category_id').equals(category.id)
+                .filter(t => t.date >= startStr)
+                .toArray();
+            const activity = txs.reduce((acc, t) => acc + t.amount, 0);
+
+            return {
+                assigned: budgetItem?.amount || 0,
+                available: (budgetItem?.amount || 0) + activity
+            };
+        }
+    }, [category.id, period.id, isHistory]);
 
     return (
         <TableRow sx={{ '& > *': { borderBottom: 'unset' } }}>
@@ -280,16 +400,15 @@ function CategoryRow({ category, month, onEdit, onDelete }: {
             <TableCell align="right" sx={{ width: 120 }}>
                 <BudgetInput
                     categoryId={category.id}
-                    month={month}
-                    initialAmount={budgeted?.amount || 0}
-                    key={budgeted?.amount}
+                    periodId={period.id}
+                    initialAmount={data?.assigned || 0}
+                    disabled={isHistory}
+                    key={`${period.id}-${data?.assigned}`} // Force re-render on period switch
                 />
             </TableCell>
-            <TableCell align="right" sx={{ color: activity < 0 ? 'error.main' : 'inherit' }}>
-                ${(activity / 100).toFixed(2)}
-            </TableCell>
+
             <TableCell align="right" sx={{ fontWeight: 'bold' }}>
-                ${(((budgeted?.amount || 0) + activity) / 100).toFixed(2)}
+                ${((data?.available || 0) / 100).toFixed(2)}
             </TableCell>
             <TableCell align="right" padding="none">
                 <RowMenu onEdit={() => onEdit(category)} onDelete={() => onDelete(category)} />
@@ -298,9 +417,10 @@ function CategoryRow({ category, month, onEdit, onDelete }: {
     );
 }
 
-function GroupRow({ group, month, onAddCategory, onEdit, onDelete, onEditCategory, onDeleteCategory }: {
+function GroupRow({ group, period, isHistory, onAddCategory, onEdit, onDelete, onEditCategory, onDeleteCategory }: {
     group: CategoryGroup;
-    month: string;
+    period: { id: string, start: string, end: string | null };
+    isHistory: boolean;
     onAddCategory: (groupId: string) => void;
     onEdit: (item: CategoryGroup) => void;
     onDelete: (item: CategoryGroup) => void;
@@ -332,9 +452,11 @@ function GroupRow({ group, month, onAddCategory, onEdit, onDelete, onEditCategor
                             </Typography>
                         </Box>
                         <Box>
-                            <IconButton size="small" onClick={() => onAddCategory(group.id)}>
-                                <AddIcon fontSize="small" />
-                            </IconButton>
+                            {!isHistory && (
+                                <IconButton size="small" onClick={() => onAddCategory(group.id)}>
+                                    <AddIcon fontSize="small" />
+                                </IconButton>
+                            )}
                             <RowMenu onEdit={() => onEdit(group)} onDelete={() => onDelete(group)} />
                         </Box>
                     </Box>
@@ -345,7 +467,8 @@ function GroupRow({ group, month, onAddCategory, onEdit, onDelete, onEditCategor
                 <CategoryRow
                     key={cat.id}
                     category={cat}
-                    month={month}
+                    period={period}
+                    isHistory={isHistory}
                     onEdit={(item) => onEditCategory(item, group.id)}
                     onDelete={onDeleteCategory}
                 />

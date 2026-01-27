@@ -9,6 +9,7 @@ import TransactionDialog from '@/components/TransactionDialog';
 import { db } from '@/db/db';
 import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
+import Link from 'next/link';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { SnackbarProvider, useSnackbar } from '@/components/AppSnackbar';
 
@@ -41,7 +42,7 @@ function DashboardContent() {
 
   const performSeed = async () => {
     try {
-      await db.transaction('rw', [db.categoryGroups, db.categories, db.accounts, db.transactions, db.budgeted], async () => {
+      await db.transaction('rw', [db.categoryGroups, db.categories, db.accounts, db.transactions, db.budgeted, db.budgetPeriods], async () => {
         await db.categoryGroups.clear();
         await db.categories.clear();
         await db.accounts.clear();
@@ -56,29 +57,43 @@ function DashboardContent() {
           { id: g2, name: 'True Expenses', order: 2 }
         ]);
 
-        // Categories
-        await db.categories.bulkAdd([
-          { id: uuidv4(), group_id: g1, name: 'Rent/Mortgage', order: 1 },
-          { id: uuidv4(), group_id: g1, name: 'Groceries', order: 2 },
-          { id: uuidv4(), group_id: g2, name: 'Auto Maintenance', order: 1 },
-        ]);
-
         // Account
         const acctId = uuidv4();
         await db.accounts.add({
           id: acctId,
           name: 'Checking',
-          type: 'checking',
-          balance: 100000 // $1000.00
+          type: 'checking'
+          // balance removed
         });
 
-        // Initial Balance Transaction for RTA
+        // Categories
+        await db.categories.bulkAdd([
+          { id: uuidv4(), group_id: g1, account_id: acctId, name: 'Rent/Mortgage', order: 1 },
+          { id: uuidv4(), group_id: g1, account_id: acctId, name: 'Groceries', order: 2 },
+          { id: uuidv4(), group_id: g2, account_id: acctId, name: 'Auto Maintenance', order: 1 },
+        ]);
+
+        // Initial Budget Period
+        const periodId = uuidv4();
+        await db.budgetPeriods.add({
+          id: periodId,
+          start: format(new Date(), 'yyyy-MM-dd'),
+          end: null // Active
+        });
+
+        // Initial Balance Transaction for RTA (No Category)
         await db.transactions.add({
           id: uuidv4(),
           account_id: acctId,
+          category_id: undefined, // RTA
           amount: 100000,
           date: format(new Date(), 'yyyy-MM-dd')
         });
+
+        // Seed some budget assignments for the initial period
+        // Rent: $0, Groceries: $0 (Clean slate for user to assign)
+        // Or assign some to show functionality?
+        // Let's assign $0. User can assign.
       });
       showSnackbar("Seed Data Successful!");
       setTimeout(() => window.location.reload(), 1000);
@@ -121,6 +136,11 @@ function DashboardContent() {
           My Budget
         </Typography>
         <Box>
+          <Link href="/transactions" passHref style={{ textDecoration: 'none' }}>
+            <Button variant="contained" color="primary" sx={{ mr: 1 }}>
+              Transactions
+            </Button>
+          </Link>
           <Button color="error" onClick={confirmReset} sx={{ mr: 1 }}>
             Reset Data
           </Button>
@@ -171,17 +191,11 @@ function DashboardContent() {
   );
 }
 
-import { UndoProvider } from '@/components/UndoProvider';
-import UndoFloatingButton from '@/components/UndoFloatingButton';
+
 import ModeSwitch from '@/components/ModeSwitch';
 
 export default function Home() {
   return (
-    <UndoProvider>
-      <SnackbarProvider>
-        <DashboardContent />
-        <UndoFloatingButton />
-      </SnackbarProvider>
-    </UndoProvider>
+    <DashboardContent />
   );
 }

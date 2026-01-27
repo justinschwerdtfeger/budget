@@ -24,12 +24,22 @@ interface TransactionDialogProps {
     onClose: () => void;
 }
 
+// ... imports ...
+
+import {
+    ToggleButton,
+    ToggleButtonGroup
+} from '@mui/material';
+
+// ... imports ...
+
 export default function TransactionDialog({ open, onClose }: TransactionDialogProps) {
     const accounts = useLiveQuery(() => db.accounts.toArray());
     const categories = useLiveQuery(() => db.categories.toArray());
     const { showSnackbar } = useSnackbar();
     const { registerUndo } = useUndo();
 
+    const [type, setType] = React.useState<'outflow' | 'inflow'>('outflow');
     const [formData, setFormData] = React.useState({
         account_id: '',
         category_id: '',
@@ -42,8 +52,11 @@ export default function TransactionDialog({ open, onClose }: TransactionDialogPr
         if (open) {
             setFormData(prev => ({
                 ...prev,
-                date: prev.date || format(new Date(), 'yyyy-MM-dd')
+                date: prev.date || format(new Date(), 'yyyy-MM-dd'),
+                account_id: '', // Reset
+                category_id: '' // Reset
             }));
+            setType('outflow');
         }
     }, [open]);
 
@@ -51,51 +64,80 @@ export default function TransactionDialog({ open, onClose }: TransactionDialogPr
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
+    const handleTypeChange = (
+        event: React.MouseEvent<HTMLElement>,
+        newType: 'outflow' | 'inflow',
+    ) => {
+        if (newType !== null) {
+            setType(newType);
+        }
+    };
+
     const handleSubmit = async () => {
-        console.log("Submit clicked", formData);
-        if (!formData.account_id || !formData.amount) {
-            console.error("Missing required fields");
+        // Validation
+        if (!formData.amount) {
+            alert("Please enter an amount.");
+            return;
+        }
+
+        const isRTA = formData.category_id === 'rta';
+        if (isRTA && !formData.account_id) {
+            alert("Please select an account for this Inflow.");
+            return;
+        }
+        if (!isRTA && !formData.category_id) {
+            alert("Please select a category.");
+            return;
+        }
+
+        // Check for positive input
+        const rawAmount = parseFloat(formData.amount);
+        if (rawAmount < 0) {
+            alert("Please enter a positive amount. Use the Outflow/Inflow toggle to set direction.");
             return;
         }
 
         try {
-            const amountInCents = Math.round(parseFloat(formData.amount) * 100);
+            let finalAccountId = formData.account_id;
+
+            // Derive Account if Category selected
+            if (!isRTA) {
+                const category = await db.categories.get(formData.category_id);
+                if (!category || !category.account_id) {
+                    alert("Selected category is not linked to a valid account.");
+                    return;
+                }
+                finalAccountId = category.account_id;
+            }
+
+            const amountInCents = Math.round(rawAmount * 100);
             const transactionId = uuidv4();
-            const signedAmount = -Math.abs(amountInCents); // Force expense
+
+            // Logic:
+            // Outflow: Negative (Expense)
+            // Inflow: Positive (Income/Refund)
+            const signedAmount = type === 'outflow' ? -amountInCents : amountInCents;
 
             await db.transaction('rw', db.accounts, db.transactions, async () => {
                 await db.transactions.add({
                     id: transactionId,
-                    account_id: formData.account_id,
-                    category_id: formData.category_id || undefined,
+                    account_id: finalAccountId,
+                    category_id: isRTA ? undefined : formData.category_id,
                     payee: formData.payee,
                     amount: signedAmount,
                     date: formData.date
                 });
 
-                const acct = await db.accounts.get(formData.account_id);
-                if (acct) {
-                    await db.accounts.update(formData.account_id, {
-                        balance: acct.balance + signedAmount
-                    });
-                }
+                // Note: Account Balance is removed, so we don't update it. 
+                // But if we kept it for performance cache later, we would.
+                // Since schema v3 removed it, we skip update.
             });
 
             showSnackbar("Transaction added");
             registerUndo("Add Transaction", async () => {
-                await db.transaction('rw', db.accounts, db.transactions, async () => {
-                    await db.transactions.delete(transactionId);
-                    const acct = await db.accounts.get(formData.account_id);
-                    if (acct) {
-                        // Reverse the signedAmount
-                        await db.accounts.update(formData.account_id, {
-                            balance: acct.balance - signedAmount
-                        });
-                    }
-                });
+                await db.transactions.delete(transactionId);
             });
 
-            console.log("Transaction saved");
             onClose();
         } catch (error) {
             console.error("Failed to save transaction", error);
@@ -104,28 +146,24 @@ export default function TransactionDialog({ open, onClose }: TransactionDialogPr
     };
 
     return (
-        <Dialog open={open} onClose={onClose}>
+        <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
             <DialogTitle>Add Transaction</DialogTitle>
             <DialogContent>
-                <DialogContentText>
-                    Record a new expense.
-                </DialogContentText>
-                <Stack spacing={2} sx={{ mt: 2, minWidth: 300 }}>
-                    <TextField
-                        select
-                        label="Account"
-                        name="account_id"
-                        value={formData.account_id}
-                        onChange={handleChange}
+                <Stack spacing={2} sx={{ mt: 1 }}>
+                    {/* Inflow/Outflow Toggle */}
+                    <ToggleButtonGroup
+                        color="primary"
+                        value={type}
+                        exclusive
+                        onChange={handleTypeChange}
+                        aria-label="Transaction Type"
                         fullWidth
                     >
-                        {accounts?.map((account) => (
-                            <MenuItem key={account.id} value={account.id}>
-                                {account.name}
-                            </MenuItem>
-                        ))}
-                    </TextField>
+                        <ToggleButton value="outflow" color="error">Outflow (-)</ToggleButton>
+                        <ToggleButton value="inflow" color="success">Inflow (+)</ToggleButton>
+                    </ToggleButtonGroup>
 
+                    {/* Category Select */}
                     <TextField
                         select
                         label="Category"
@@ -134,12 +172,34 @@ export default function TransactionDialog({ open, onClose }: TransactionDialogPr
                         onChange={handleChange}
                         fullWidth
                     >
+                        <MenuItem value="rta" sx={{ fontStyle: 'italic', fontWeight: 'bold' }}>
+                            To/From Ready to Assign
+                        </MenuItem>
                         {categories?.map((cat) => (
                             <MenuItem key={cat.id} value={cat.id}>
                                 {cat.name}
                             </MenuItem>
                         ))}
                     </TextField>
+
+                    {/* Account Select (Only if RTA) */}
+                    {formData.category_id === 'rta' && (
+                        <TextField
+                            select
+                            label="Account"
+                            name="account_id"
+                            value={formData.account_id}
+                            onChange={handleChange}
+                            fullWidth
+                            helperText="Which account is this transaction affecting?"
+                        >
+                            {accounts?.map((account) => (
+                                <MenuItem key={account.id} value={account.id}>
+                                    {account.name}
+                                </MenuItem>
+                            ))}
+                        </TextField>
+                    )}
 
                     <TextField
                         label="Payee"
@@ -156,6 +216,7 @@ export default function TransactionDialog({ open, onClose }: TransactionDialogPr
                         value={formData.amount}
                         onChange={handleChange}
                         fullWidth
+                        inputProps={{ min: 0 }}
                     />
 
                     <TextField

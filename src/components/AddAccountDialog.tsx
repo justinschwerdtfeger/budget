@@ -28,7 +28,7 @@ export default function AddAccountDialog({ open, onClose, editAccount }: AddAcco
     const [formData, setFormData] = React.useState({
         name: '',
         type: 'checking',
-        balance: ''
+        balance: '' // This is now purely for the initial transaction, not stored on account
     });
 
     const { showSnackbar } = useSnackbar();
@@ -39,7 +39,7 @@ export default function AddAccountDialog({ open, onClose, editAccount }: AddAcco
             setFormData({
                 name: editAccount.name,
                 type: editAccount.type,
-                balance: (editAccount.balance / 100).toFixed(2)
+                balance: '' // Cannot edit starting balance easily here, simplistic for now
             });
         } else if (open) {
             setFormData({ name: '', type: 'checking', balance: '' });
@@ -58,29 +58,33 @@ export default function AddAccountDialog({ open, onClose, editAccount }: AddAcco
                 await db.accounts.update(editAccount.id, {
                     name: formData.name,
                     type: formData.type as any
-                    // Don't update balance here implies no transaction change
                 });
                 showSnackbar("Account updated");
                 registerUndo("Edit Account", async () => {
-                    await db.accounts.update(editAccount.id, editAccount);
+                    await db.accounts.update(editAccount.id, {
+                        name: editAccount.name,
+                        type: editAccount.type as any
+                    });
                 });
             } else {
                 const balanceInCents = Math.round(parseFloat(formData.balance || '0') * 100);
                 const acctId = uuidv4();
 
                 await db.transaction('rw', db.accounts, db.transactions, async () => {
+                    // 1. Create Account (No balance field)
                     await db.accounts.add({
                         id: acctId,
                         name: formData.name,
-                        type: formData.type as any,
-                        balance: balanceInCents
+                        type: formData.type as any
                     });
 
+                    // 2. Create Initial Transaction (Inflow to RTA)
                     if (balanceInCents !== 0) {
                         await db.transactions.add({
                             id: uuidv4(),
                             account_id: acctId,
-                            amount: balanceInCents,
+                            category_id: undefined, // RTA
+                            amount: balanceInCents, // Positive = Inflow
                             date: format(new Date(), 'yyyy-MM-dd'),
                             payee: 'Starting Balance'
                         });
@@ -89,7 +93,6 @@ export default function AddAccountDialog({ open, onClose, editAccount }: AddAcco
 
                 showSnackbar("Account created");
                 registerUndo("Add Account", async () => {
-                    // Delete the account and associated transactions (like starting balance)
                     await db.transaction('rw', db.accounts, db.transactions, async () => {
                         await db.accounts.delete(acctId);
                         await db.transactions.where({ account_id: acctId }).delete();
@@ -109,7 +112,7 @@ export default function AddAccountDialog({ open, onClose, editAccount }: AddAcco
             <DialogTitle>{editAccount ? 'Edit Account' : 'Add Account'}</DialogTitle>
             <DialogContent>
                 <DialogContentText>
-                    {editAccount ? 'Update account details.' : 'Create a new account to track.'}
+                    {editAccount ? 'Update account details.' : 'Create a new account. Initial balance will go to "Ready to Assign".'}
                 </DialogContentText>
                 <Stack spacing={2} sx={{ mt: 2, minWidth: 300 }}>
                     <TextField
@@ -143,7 +146,7 @@ export default function AddAccountDialog({ open, onClose, editAccount }: AddAcco
                             value={formData.balance}
                             onChange={handleChange}
                             fullWidth
-                            helperText="Positive for cash/checking, negative for debt."
+                            helperText="Positive for cash/checking. Will be added to Ready to Assign."
                         />
                     )}
                 </Stack>
