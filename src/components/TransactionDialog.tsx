@@ -76,24 +76,24 @@ export default function TransactionDialog({ open, onClose }: TransactionDialogPr
     const handleSubmit = async () => {
         // Validation
         if (!formData.amount) {
-            alert("Please enter an amount.");
+            showSnackbar("Error: Please enter an amount.");
             return;
         }
 
         const isRTA = formData.category_id === 'rta';
         if (isRTA && !formData.account_id) {
-            alert("Please select an account for this Inflow.");
+            showSnackbar("Error: Please select an account for this Inflow.");
             return;
         }
         if (!isRTA && !formData.category_id) {
-            alert("Please select a category.");
+            showSnackbar("Error: Please select a category.");
             return;
         }
 
         // Check for positive input
         const rawAmount = parseFloat(formData.amount);
         if (rawAmount < 0) {
-            alert("Please enter a positive amount. Use the Outflow/Inflow toggle to set direction.");
+            showSnackbar("Error: Please enter a positive amount. Use the Outflow/Inflow toggle to set direction.");
             return;
         }
 
@@ -104,7 +104,7 @@ export default function TransactionDialog({ open, onClose }: TransactionDialogPr
             if (!isRTA) {
                 const category = await db.categories.get(formData.category_id);
                 if (!category || !category.account_id) {
-                    alert("Selected category is not linked to a valid account.");
+                    showSnackbar("Error: Selected category is not linked to a valid account.");
                     return;
                 }
                 finalAccountId = category.account_id;
@@ -123,14 +123,10 @@ export default function TransactionDialog({ open, onClose }: TransactionDialogPr
                     id: transactionId,
                     account_id: finalAccountId,
                     category_id: isRTA ? undefined : formData.category_id,
-                    payee: formData.payee,
+                    payee: formData.payee.trim(),
                     amount: signedAmount,
                     date: formData.date
                 });
-
-                // Note: Account Balance is removed, so we don't update it. 
-                // But if we kept it for performance cache later, we would.
-                // Since schema v3 removed it, we skip update.
             });
 
             showSnackbar("Transaction added");
@@ -141,7 +137,7 @@ export default function TransactionDialog({ open, onClose }: TransactionDialogPr
             onClose();
         } catch (error) {
             console.error("Failed to save transaction", error);
-            alert("Failed to save transaction: " + error);
+            showSnackbar("Error: Failed to save transaction: " + error);
         }
     };
 

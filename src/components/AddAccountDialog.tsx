@@ -12,7 +12,7 @@ import {
     MenuItem,
     Stack
 } from '@mui/material';
-import { db } from '@/db/db';
+import { db, type Account } from '@/db/db';
 import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
 import { useSnackbar } from './AppSnackbar';
@@ -21,7 +21,7 @@ import { useUndo } from './UndoProvider';
 interface AddAccountDialogProps {
     open: boolean;
     onClose: () => void;
-    editAccount?: { id: string; name: string; type: string; balance: number };
+    editAccount?: Account;
 }
 
 export default function AddAccountDialog({ open, onClose, editAccount }: AddAccountDialogProps) {

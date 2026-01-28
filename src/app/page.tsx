@@ -13,7 +13,9 @@ import Link from 'next/link';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { SnackbarProvider, useSnackbar } from '@/components/AppSnackbar';
 
-function DashboardContent() {
+import ModeSwitch from '@/components/ModeSwitch';
+
+export default function Home() {
   const [openTransaction, setOpenTransaction] = React.useState(false);
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [confirmConfig, setConfirmConfig] = React.useState({ title: '', content: '', action: () => { } });
@@ -42,12 +44,13 @@ function DashboardContent() {
 
   const performSeed = async () => {
     try {
-      await db.transaction('rw', [db.categoryGroups, db.categories, db.accounts, db.transactions, db.budgeted, db.budgetPeriods], async () => {
+      await db.transaction('rw', [db.categoryGroups, db.categories, db.accounts, db.transactions, db.budgeted, db.budgetPeriods, db.budgetSnapshots], async () => {
         await db.categoryGroups.clear();
         await db.categories.clear();
         await db.accounts.clear();
         await db.transactions.clear();
         await db.budgeted.clear();
+
 
         // Groups
         const g1 = uuidv4();
@@ -114,12 +117,14 @@ function DashboardContent() {
 
   const performReset = async () => {
     try {
-      await db.transaction('rw', [db.categoryGroups, db.categories, db.accounts, db.transactions, db.budgeted], async () => {
+      await db.transaction('rw', [db.categoryGroups, db.categories, db.accounts, db.transactions, db.budgeted, db.budgetPeriods, db.budgetSnapshots], async () => {
         await db.categoryGroups.clear();
         await db.categories.clear();
         await db.accounts.clear();
         await db.transactions.clear();
         await db.budgeted.clear();
+        await db.budgetPeriods.clear();
+        await db.budgetSnapshots.clear();
       });
       showSnackbar("Reset Successful");
       setTimeout(() => window.location.reload(), 1000);
@@ -188,14 +193,5 @@ function DashboardContent() {
         isDestructive={true}
       />
     </Container>
-  );
-}
-
-
-import ModeSwitch from '@/components/ModeSwitch';
-
-export default function Home() {
-  return (
-    <DashboardContent />
   );
 }

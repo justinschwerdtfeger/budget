@@ -1,11 +1,11 @@
-
 import Dexie, { type EntityTable } from 'dexie';
 
 interface Account {
     id: string;
     name: string;
     type: 'checking' | 'savings' | 'credit' | 'cash';
-    // balance removed - derived from categories
+    // TODO: Check comments
+    // balance removed - derived from categories 
 }
 
 interface CategoryGroup {
@@ -28,8 +28,8 @@ interface Transaction {
     category_id?: string;
     payee?: string;
     amount: number; // In cents. Positive = income, Negative = expense
-    date: string; // ISO date string YYYY-MM-DD
-    memo?: string;
+    date: string; // ISO date string YYYY-MM-DD TODO: Why are dates stored as strings?
+    memo?: string; // TODO: how do we use this?
 }
 
 interface BudgetPeriod {

@@ -19,7 +19,8 @@ import {
     Menu,
     MenuItem,
     ListItemIcon,
-    ListItemText
+    ListItemText,
+    Tooltip
 } from '@mui/material';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
@@ -112,7 +113,7 @@ export default function BudgetView() {
             title: "Close Budget Period?",
             content: "This will finalize the current budget, take a snapshot of all values, and start a new period. Unspent 'Available' funds will need to be re-assigned in the new period (or you can view them in history).",
             action: async () => {
-                await db.transaction('rw', db.budgetPeriods, db.budgetSnapshots, db.categories, db.budgeted, db.transactions, async () => {
+                await db.transaction('rw', [db.budgetPeriods, db.budgetSnapshots, db.categories, db.budgeted, db.transactions], async () => {
                     const now = format(new Date(), 'yyyy-MM-dd');
 
                     // 1. Snapshot all categories
@@ -372,22 +373,32 @@ function CategoryRow({ category, period, isHistory, onEdit, onDelete }: {
 
     const data = useLiveQuery(async () => {
         if (isHistory) {
-            return await db.budgetSnapshots.where({ period_id: period.id, category_id: category.id }).first();
+            const snapshot = await db.budgetSnapshots.where({ period_id: period.id, category_id: category.id }).first();
+            return {
+                assigned: snapshot?.assigned || 0,
+                available: snapshot?.available || 0,
+                activity: snapshot?.activity || 0,
+                txCount: 0 // Snapshots don't store tx count, or we'd need to fetch them
+            };
         } else {
             // Active Logic
             const budgetItem = await db.budgeted.where({ period_id: period.id, category_id: category.id }).first();
             const startStr = period.start;
 
-            // Activity = Sum of transactions for this category >= period start
-            const txs = await db.transactions
+            // Fetch all transactions for this category to ensure we don't miss any due to filter issues
+            // Then filter in memory (safer for small datasets and debugging)
+            const allTxs = await db.transactions
                 .where('category_id').equals(category.id)
-                .filter(t => t.date >= startStr)
                 .toArray();
+
+            const txs = allTxs.filter(t => t.date >= startStr);
             const activity = txs.reduce((acc, t) => acc + t.amount, 0);
 
             return {
                 assigned: budgetItem?.amount || 0,
-                available: (budgetItem?.amount || 0) + activity
+                available: (budgetItem?.amount || 0) + activity,
+                activity,
+                txCount: txs.length
             };
         }
     }, [category.id, period.id, isHistory]);
@@ -408,7 +419,9 @@ function CategoryRow({ category, period, isHistory, onEdit, onDelete }: {
             </TableCell>
 
             <TableCell align="right" sx={{ fontWeight: 'bold' }}>
-                ${((data?.available || 0) / 100).toFixed(2)}
+                <Tooltip title={`Assigned: $${((data?.assigned || 0) / 100).toFixed(2)}, Activity: $${((data?.activity || 0) / 100).toFixed(2)} (${data?.txCount || 0} txs)`}>
+                    <span>${((data?.available || 0) / 100).toFixed(2)}</span>
+                </Tooltip>
             </TableCell>
             <TableCell align="right" padding="none">
                 <RowMenu onEdit={() => onEdit(category)} onDelete={() => onDelete(category)} />

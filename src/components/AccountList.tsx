@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/db/db';
+import { db, type Account } from '@/db/db';
 import {
     List,
     ListItem,
@@ -30,7 +30,7 @@ import ConfirmDialog from './ConfirmDialog';
 export default function AccountList() {
     const accounts = useLiveQuery(() => db.accounts.toArray());
     const [openAddAccount, setOpenAddAccount] = React.useState(false);
-    const [editAccount, setEditAccount] = React.useState<any>(undefined);
+    const [editAccount, setEditAccount] = React.useState<Account | undefined>(undefined);
 
     // Confirm Dialog State
     const [confirmOpen, setConfirmOpen] = React.useState(false);
@@ -43,12 +43,12 @@ export default function AccountList() {
         setOpenAddAccount(true);
     };
 
-    const handleEdit = (account: any) => {
+    const handleEdit = (account: Account) => {
         setEditAccount(account);
         setOpenAddAccount(true);
     };
 
-    const handleDelete = (account: any) => {
+    const handleDelete = (account: Account) => {
         setConfirmConfig({
             title: `Delete ${account.name}?`,
             content: "Delete this account? Transactions will stick around but be orphaned (for now).",
