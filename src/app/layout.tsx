@@ -9,6 +9,18 @@ import '@/app/global.css';
 import { UndoProvider } from '@/components/UndoProvider';
 import { SnackbarProvider } from '@/components/AppSnackbar';
 import UndoFloatingButton from '@/components/UndoFloatingButton';
+import { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  metadataBase: new URL("localhost:3000"), // use a correct url otherwise your app won’t build
+  title: "Budgety",
+  description: "your app description here",
+  category: "website",
+  generator: "Next.js", // framework used
+
+// the big is here 
+  manifest: "/manifest.json", 
+}
 
 export default function RootLayout(props: { children: React.ReactNode }) {
   return (
