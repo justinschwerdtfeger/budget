@@ -34,6 +34,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { useSnackbar } from './AppSnackbar';
 import ConfirmDialog from './ConfirmDialog';
 import { useUndo } from './UndoProvider';
+import NumberField from './NumberField';
 
 export default function BudgetView() {
     const periods = useLiveQuery(() => db.budgetPeriods.orderBy('start').reverse().toArray());
@@ -281,6 +282,7 @@ function BudgetInput({ categoryId, periodId, initialAmount, disabled }: { catego
     }, [initialAmount, periodId]);
 
     const handleBlur = async () => {
+        console.log(amount);
         if (disabled) return;
         const cents = Math.round(parseFloat(amount) * 100);
         if (cents === initialAmount) return;
@@ -308,22 +310,20 @@ function BudgetInput({ categoryId, periodId, initialAmount, disabled }: { catego
             showSnackbar("Budget assigned");
         }
     };
-
     return (
-        <TextField
-            variant="standard"
-            type="number"
-            value={amount}
-            disabled={disabled}
-            onChange={(e) => setAmount(e.target.value)}
-            onBlur={handleBlur}
+        <NumberField
+            min={0}
+            size="small"
+            defaultValue={initialAmount / 100}
+            onValueChange={(value) => {
+                setAmount(value?.toFixed(2) ?? "");
+            }}
             onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                     (e.target as HTMLInputElement).blur();
                 }
             }}
-            inputProps={{ style: { textAlign: 'right' } }}
-            fullWidth
+            onBlur={handleBlur}
         />
     );
 }
