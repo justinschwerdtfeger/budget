@@ -126,6 +126,12 @@ export default function Home() {
         await db.budgetPeriods.clear();
         await db.budgetSnapshots.clear();
       });
+      const periodId = uuidv4();
+      await db.budgetPeriods.add({
+        id: periodId,
+        start: format(new Date(), 'yyyy-MM-dd'),
+        end: null // Active
+      });
       showSnackbar("Reset Successful");
       setTimeout(() => window.location.reload(), 1000);
     } catch (e) {
