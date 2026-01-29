@@ -155,7 +155,7 @@ export default function Home() {
           <Button color="error" onClick={confirmReset} sx={{ mr: 1 }}>
             Reset Data
           </Button>
-          <Button variant="outlined" size="small" onClick={seedData} sx={{ mr: 1 }}>
+          <Button variant="outlined" onClick={seedData} sx={{ mr: 1 }}>
             Seed Initial Data
           </Button>
           <ModeSwitch />

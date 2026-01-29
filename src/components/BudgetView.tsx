@@ -282,7 +282,6 @@ function BudgetInput({ categoryId, periodId, initialAmount, disabled }: { catego
     }, [initialAmount, periodId]);
 
     const handleBlur = async () => {
-        console.log(amount);
         if (disabled) return;
         const cents = Math.round(parseFloat(amount) * 100);
         if (cents === initialAmount) return;
@@ -313,6 +312,7 @@ function BudgetInput({ categoryId, periodId, initialAmount, disabled }: { catego
     return (
         <NumberField
             min={0}
+            disabled={disabled}
             size="small"
             defaultValue={initialAmount / 100}
             onValueChange={(value) => {
