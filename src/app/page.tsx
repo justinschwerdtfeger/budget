@@ -44,13 +44,11 @@ export default function Home() {
 
   const performSeed = async () => {
     try {
-      await db.transaction('rw', [db.categoryGroups, db.categories, db.accounts, db.transactions, db.budgeted, db.budgetPeriods, db.budgetSnapshots], async () => {
+      await db.transaction('rw', [db.categoryGroups, db.categories, db.accounts, db.transactions], async () => {
         await db.categoryGroups.clear();
         await db.categories.clear();
         await db.accounts.clear();
         await db.transactions.clear();
-        await db.budgeted.clear();
-
 
         // Groups
         const g1 = uuidv4();
@@ -75,14 +73,6 @@ export default function Home() {
           { id: uuidv4(), group_id: g1, account_id: acctId, name: 'Groceries', order: 2 },
           { id: uuidv4(), group_id: g2, account_id: acctId, name: 'Auto Maintenance', order: 1 },
         ]);
-
-        // Initial Budget Period
-        const periodId = uuidv4();
-        await db.budgetPeriods.add({
-          id: periodId,
-          start: format(new Date(), 'yyyy-MM-dd'),
-          end: null // Active
-        });
 
         // Initial Balance Transaction for RTA (No Category)
         await db.transactions.add({
@@ -117,20 +107,11 @@ export default function Home() {
 
   const performReset = async () => {
     try {
-      await db.transaction('rw', [db.categoryGroups, db.categories, db.accounts, db.transactions, db.budgeted, db.budgetPeriods, db.budgetSnapshots], async () => {
+      await db.transaction('rw', [db.categoryGroups, db.categories, db.accounts, db.transactions], async () => {
         await db.categoryGroups.clear();
         await db.categories.clear();
         await db.accounts.clear();
         await db.transactions.clear();
-        await db.budgeted.clear();
-        await db.budgetPeriods.clear();
-        await db.budgetSnapshots.clear();
-      });
-      const periodId = uuidv4();
-      await db.budgetPeriods.add({
-        id: periodId,
-        start: format(new Date(), 'yyyy-MM-dd'),
-        end: null // Active
       });
       showSnackbar("Reset Successful");
       setTimeout(() => window.location.reload(), 1000);

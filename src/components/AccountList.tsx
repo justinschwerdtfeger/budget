@@ -102,7 +102,7 @@ function AccountItem({ account, onEdit, onDelete }: { account: any, onEdit: () =
     const open = Boolean(anchorEl);
 
     // Calculate Target Balance: Sum of Available amounts for all categories linked to this account
-    // Available = Budgeted + Activity
+    // Available = Activity
     // Note: We need to sum across ALL time or just current month?
     // User requirement: "amount in the account should be the amount of money the user *should* put in each account to follow the budget"
     // This implies a cumulative total of all category balances.
@@ -111,19 +111,15 @@ function AccountItem({ account, onEdit, onDelete }: { account: any, onEdit: () =
         let total = 0;
 
         for (const cat of categories) {
-            // Get all budget assignments
-            const budgetItems = await db.budgeted.where({ category_id: cat.id }).toArray();
-            const budgetedTotal = budgetItems.reduce((acc, b) => acc + b.amount, 0);
-
             // Get all activity (transactions)
             const txs = await db.transactions
                 .where('category_id').equals(cat.id)
                 .toArray();
             const activityTotal = txs.reduce((acc, t) => acc + t.amount, 0);
 
-            // Available = Budgeted + Activity
+            // Available = Activity
             // (If Activity is negative, it subtracts. If positive (refund), it adds.)
-            total += (budgetedTotal + activityTotal);
+            total += activityTotal;
         }
         return total;
     }, [account.id]) || 0;

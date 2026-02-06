@@ -97,16 +97,10 @@ export default function BudgetView() {
     const groups = useLiveQuery(() => db.categoryGroups.orderBy('order').toArray());
 
     const readyToAssign = useLiveQuery(async () => {
-        // Global RTA logic:
-        // Total Income (Ever) - Total Budgeted (Ever, across all periods)
-        // This is easiest to ensure money isn't lost between periods.
-        const allInflows = await db.transactions.filter(t => !t.category_id).toArray();
-        const totalIncome = allInflows.reduce((acc, t) => acc + t.amount, 0);
+        const transactionsWithoutCategories = await db.transactions.filter(t => !t.category_id).toArray();
+        const rta = transactionsWithoutCategories.reduce((acc, t) => acc + t.amount, 0);
 
-        const allBudgetedItems = await db.budgeted.toArray();
-        const totalBudgeted = allBudgetedItems.reduce((acc, b) => acc + b.amount, 0);
-
-        return totalIncome - totalBudgeted;
+        return rta;
     });
 
     return (
@@ -123,7 +117,6 @@ export default function BudgetView() {
                     <TableHead>
                         <TableRow>
                             <TableCell>CATEGORY</TableCell>
-                            <TableCell align="right">ASSIGNED</TableCell>
                             <TableCell align="right">AVAILABLE</TableCell>
                             <TableCell padding="checkbox" />
                         </TableRow>
@@ -168,60 +161,6 @@ export default function BudgetView() {
     );
 }
 
-function BudgetInput({ categoryId, initialAmount }: { categoryId: string, initialAmount: number }) {
-    const [amount, setAmount] = React.useState((initialAmount / 100).toFixed(2));
-    const { showSnackbar } = useSnackbar();
-    const { registerUndo } = useUndo();
-
-    // Reset local state if props change (e.g. switching periods)
-    React.useEffect(() => {
-        setAmount((initialAmount / 100).toFixed(2));
-    }, [initialAmount]);
-
-    const handleBlur = async () => {
-        const cents = Math.round(parseFloat(amount) * 100);
-        if (cents === initialAmount) return;
-
-        const existing = await db.budgeted.where({ category_id: categoryId }).first();
-
-        if (existing) {
-            const previousAmount = existing.amount;
-            await db.budgeted.update(existing.id, { amount: cents });
-            registerUndo(`Budget Assign $${previousAmount / 100}`, async () => {
-                await db.budgeted.update(existing.id, { amount: previousAmount });
-            });
-            showSnackbar("Budget assigned");
-        } else {
-            const newId = uuidv4();
-            await db.budgeted.add({
-                id: newId,
-                category_id: categoryId,
-                amount: cents
-            });
-            registerUndo("Budget Assignment", async () => {
-                await db.budgeted.delete(newId);
-            });
-            showSnackbar("Budget assigned");
-        }
-    };
-    return (
-        <NumberField
-            min={0}
-            size="small"
-            defaultValue={initialAmount / 100}
-            onValueChange={(value) => {
-                setAmount(value?.toFixed(2) ?? "");
-            }}
-            onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                    (e.target as HTMLInputElement).blur();
-                }
-            }}
-            onBlur={handleBlur}
-        />
-    );
-}
-
 function RowMenu({ onEdit, onDelete }: { onEdit: () => void, onDelete: () => void }) {
     const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
     const open = Boolean(anchorEl);
@@ -260,14 +199,7 @@ function CategoryRow({ category, onEdit, onDelete }: {
     onEdit: (item: Category) => void;
     onDelete: (item: Category) => void;
 }) {
-    // If History: Fetch from Snapshots
-    // If Active: Calculate Live
-
     const data = useLiveQuery(async () => {
-            const budgetItem = await db.budgeted.where({ category_id: category.id }).first();
-
-            // Fetch all transactions for this category to ensure we don't miss any due to filter issues
-            // Then filter in memory (safer for small datasets and debugging)
             const txs = await db.transactions
                 .where('category_id').equals(category.id)
                 .toArray();
@@ -275,8 +207,7 @@ function CategoryRow({ category, onEdit, onDelete }: {
             const activity = txs.reduce((acc, t) => acc + t.amount, 0);
 
             return {
-                assigned: budgetItem?.amount || 0,
-                available: (budgetItem?.amount || 0) + activity,
+                available: activity,
                 activity,
                 txCount: txs.length
             };
@@ -287,15 +218,8 @@ function CategoryRow({ category, onEdit, onDelete }: {
             <TableCell component="th" scope="row" sx={{ pl: 4 }}>
                 {category.name}
             </TableCell>
-            <TableCell align="right" sx={{ width: 120 }}>
-                <BudgetInput
-                    categoryId={category.id}
-                    initialAmount={data?.assigned || 0}
-                />
-            </TableCell>
-
             <TableCell align="right" sx={{ fontWeight: 'bold' }}>
-                <Tooltip title={`Assigned: $${((data?.assigned || 0) / 100).toFixed(2)}, Activity: $${((data?.activity || 0) / 100).toFixed(2)} (${data?.txCount || 0} txs)`}>
+                <Tooltip title={`Activity: $${((data?.activity || 0) / 100).toFixed(2)} (${data?.txCount || 0} txs)`}>
                     <span>${((data?.available || 0) / 100).toFixed(2)}</span>
                 </Tooltip>
             </TableCell>

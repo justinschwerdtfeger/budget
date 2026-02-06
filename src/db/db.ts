@@ -5,7 +5,6 @@ interface Account {
     name: string;
     type: 'checking' | 'savings' | 'credit' | 'cash';
     // TODO: Check comments
-    // balance removed - derived from categories 
 }
 
 interface CategoryGroup {
@@ -32,58 +31,19 @@ interface Transaction {
     memo?: string; // TODO: how do we use this?
 }
 
-// Budgeted amount for a category in a specific period
-interface Budgeted {
-    id: string; // composite key: period_id + category_id
-    category_id: string;
-    amount: number; // In cents
-}
-
 const db = new Dexie('BudgetDB') as Dexie & {
     accounts: EntityTable<Account, 'id'>;
     categoryGroups: EntityTable<CategoryGroup, 'id'>;
     categories: EntityTable<Category, 'id'>;
     transactions: EntityTable<Transaction, 'id'>;
-    budgeted: EntityTable<Budgeted, 'id'>;
 };
 
-// Version 4: Flexible Budget Periods
-db.version(4).stores({
-    accounts: 'id, name, type',
-    categoryGroups: 'id, name, order',
-    categories: 'id, group_id, account_id, name, order',
-    transactions: 'id, account_id, category_id, date',
-    budgeted: 'id, period_id, category_id', // Replaced month with period_id
-    budgetPeriods: 'id, start, end',
-    budgetSnapshots: 'id, period_id, category_id'
-});
-
-// Version 3: Remove balance from accounts
-db.version(3).stores({
-    accounts: 'id, name, type', // balance removed
-    categoryGroups: 'id, name, order',
-    categories: 'id, group_id, account_id, name, order',
-    transactions: 'id, account_id, category_id, date',
-    budgeted: 'id, month, category_id'
-});
-
-// Version 2: Add account_id to categories
-db.version(2).stores({
-    accounts: 'id, name, type',
-    categoryGroups: 'id, name, order',
-    categories: 'id, group_id, account_id, name, order',
-    transactions: 'id, account_id, category_id, date',
-    budgeted: 'id, month, category_id'
-});
-
-// Keep Version 1 for history/compatibility if needed (usually Dexie handles upgrades)
 db.version(1).stores({
     accounts: 'id, name, type',
     categoryGroups: 'id, name, order',
     categories: 'id, group_id, name, order',
     transactions: 'id, account_id, category_id, date',
-    budgeted: 'id, month, category_id'
 });
 
 export { db };
-export type { Account, CategoryGroup, Category, Transaction, Budgeted };
+export type { Account, CategoryGroup, Category, Transaction };
