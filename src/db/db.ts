@@ -32,25 +32,9 @@ interface Transaction {
     memo?: string; // TODO: how do we use this?
 }
 
-interface BudgetPeriod {
-    id: string; // UUID
-    start: string; // ISO Date YYYY-MM-DD
-    end: string | null; // ISO Date YYYY-MM-DD or null if active
-}
-
-interface BudgetSnapshot {
-    id: string; // UUID
-    period_id: string;
-    category_id: string;
-    assigned: number;
-    activity: number;
-    available: number;
-}
-
 // Budgeted amount for a category in a specific period
 interface Budgeted {
     id: string; // composite key: period_id + category_id
-    period_id: string;
     category_id: string;
     amount: number; // In cents
 }
@@ -61,8 +45,6 @@ const db = new Dexie('BudgetDB') as Dexie & {
     categories: EntityTable<Category, 'id'>;
     transactions: EntityTable<Transaction, 'id'>;
     budgeted: EntityTable<Budgeted, 'id'>;
-    budgetPeriods: EntityTable<BudgetPeriod, 'id'>;
-    budgetSnapshots: EntityTable<BudgetSnapshot, 'id'>;
 };
 
 // Version 4: Flexible Budget Periods
@@ -103,5 +85,5 @@ db.version(1).stores({
     budgeted: 'id, month, category_id'
 });
 
-export { db, type BudgetPeriod, type BudgetSnapshot };
+export { db };
 export type { Account, CategoryGroup, Category, Transaction, Budgeted };
