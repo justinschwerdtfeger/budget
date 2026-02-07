@@ -25,10 +25,9 @@ interface Transaction {
     id: string;
     account_id: string;
     category_id?: string;
-    payee?: string;
+    memo?: string;
     amount: number; // In cents. Positive = income, Negative = expense
     date: string; // ISO date string YYYY-MM-DD TODO: Why are dates stored as strings?
-    memo?: string; // TODO: how do we use this?
 }
 
 const db = new Dexie('BudgetDB') as Dexie & {

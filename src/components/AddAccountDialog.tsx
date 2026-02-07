@@ -86,7 +86,7 @@ export default function AddAccountDialog({ open, onClose, editAccount }: AddAcco
                             category_id: undefined, // RTA
                             amount: balanceInCents, // Positive = Inflow
                             date: format(new Date(), 'yyyy-MM-dd'),
-                            payee: 'Starting Balance'
+                            memo: 'Starting Balance'
                         });
                     }
                 });

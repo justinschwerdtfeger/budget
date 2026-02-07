@@ -43,7 +43,7 @@ export default function TransactionDialog({ open, onClose }: TransactionDialogPr
     const [formData, setFormData] = React.useState({
         account_id: '',
         category_id: '',
-        payee: '',
+        memo: '',
         amount: '',
         date: ''
     });
@@ -123,7 +123,7 @@ export default function TransactionDialog({ open, onClose }: TransactionDialogPr
                     id: transactionId,
                     account_id: finalAccountId,
                     category_id: isRTA ? undefined : formData.category_id,
-                    payee: formData.payee.trim(),
+                    memo: formData.payee.trim(),
                     amount: signedAmount,
                     date: formData.date
                 });
@@ -198,9 +198,9 @@ export default function TransactionDialog({ open, onClose }: TransactionDialogPr
                     )}
 
                     <TextField
-                        label="Payee"
-                        name="payee"
-                        value={formData.payee}
+                        label="Memo"
+                        name="memo"
+                        value={formData.memo}
                         onChange={handleChange}
                         fullWidth
                     />

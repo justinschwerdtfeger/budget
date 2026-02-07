@@ -43,7 +43,7 @@ export default function TransactionList() {
                     <TableHead>
                         <TableRow>
                             <TableCell>Date</TableCell>
-                            <TableCell>Payee</TableCell>
+                            <TableCell>Memo</TableCell>
                             <TableCell>Category</TableCell>
                             <TableCell>Account</TableCell>
                             <TableCell align="right">Amount</TableCell>
@@ -53,7 +53,7 @@ export default function TransactionList() {
                         {transactions.map((tx) => (
                             <TableRow key={tx.id}>
                                 <TableCell>{format(new Date(tx.date), 'MMM d, yyyy')}</TableCell>
-                                <TableCell>{tx.payee || '(No Payee)'}</TableCell>
+                                <TableCell>{tx.memo || '(No Memo)'}</TableCell>
                                 <TableCell>{tx.categoryName}</TableCell>
                                 <TableCell>{tx.accountName}</TableCell>
                                 <TableCell align="right" sx={{ color: tx.amount < 0 ? 'text.primary' : 'success.main', fontWeight: 'bold' }}>
