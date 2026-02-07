@@ -23,7 +23,8 @@ interface Category {
 
 interface Transaction {
     id: string;
-    category_id?: string;
+    from_category_id?: string; // used for transfers
+    to_category_id: string;
     memo?: string;
     amount: number; // In cents. Positive = income, Negative = expense
     date: string; // ISO date string YYYY-MM-DD TODO: Why are dates stored as strings?
@@ -40,7 +41,7 @@ db.version(1).stores({
     accounts: 'id, name, type',
     categoryGroups: 'id, name, order',
     categories: 'id, group_id, name, order',
-    transactions: 'id, account_id, category_id, date',
+    transactions: 'id, from_category_id, to_category_id, date',
 });
 
 export { db };

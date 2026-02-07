@@ -19,12 +19,38 @@ import { format } from 'date-fns';
 export default function TransactionList() {
     const transactions = useLiveQuery(async () => {
         const txs = await db.transactions.orderBy('date').reverse().toArray();
-        // Enrich with Account and Category names
+
         return Promise.all(txs.map(async (tx) => {
-            const category = tx.category_id ? await db.categories.get(tx.category_id) : null;
+            if (tx.to_category_id === 'rta') {
+                return {
+                    ...tx,
+                    categoryName: 'Ready to Assign'
+                };
+            }
+            const toCategory = await db.categories.get(tx.to_category_id);
+            const toCategoryName = toCategory?.name || `Unable to find category: ${tx.to_category_id}`;
+
+            // If we have a from_category_id, it's a transfer
+            if (tx.from_category_id) {
+                // Transfer from RTA
+                if (tx.from_category_id === 'rta') {
+                    return {
+                        ...tx,
+                        categoryName: `Ready to Assign -> ${toCategoryName}`
+                    };
+                }
+
+                // Transfer from one category to another
+                const fromCategory = await db.categories.get(tx.from_category_id);
+                const fromCategoryName = fromCategory?.name || `Unable to find category: ${tx.from_category_id}`;
+                return {
+                    ...tx,
+                    categoryName: `${fromCategoryName} -> ${toCategoryName}`
+                };
+            }
             return {
                 ...tx,
-                categoryName: category?.name || 'Uncategorized'
+                categoryName: toCategoryName
             };
         }));
     });
@@ -59,7 +85,7 @@ export default function TransactionList() {
                         ))}
                         {transactions.length === 0 && (
                             <TableRow>
-                                <TableCell colSpan={5} align="center">
+                                <TableCell colSpan={4} align="center">
                                     No transactions found.
                                 </TableCell>
                             </TableRow>

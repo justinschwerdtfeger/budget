@@ -77,7 +77,7 @@ export default function Home() {
         // Initial Balance Transaction for RTA (No Category)
         await db.transactions.add({
           id: uuidv4(),
-          category_id: undefined, // RTA
+          to_category_id: 'rta', // RTA
           amount: 100000,
           date: format(new Date(), 'yyyy-MM-dd')
         });

@@ -97,7 +97,7 @@ export default function BudgetView() {
     const groups = useLiveQuery(() => db.categoryGroups.orderBy('order').toArray());
 
     const readyToAssign = useLiveQuery(async () => {
-        const transactionsWithoutCategories = await db.transactions.filter(t => !t.category_id).toArray();
+        const transactionsWithoutCategories = await db.transactions.where('to_category_id').equals('rta').toArray();
         const rta = transactionsWithoutCategories.reduce((acc, t) => acc + t.amount, 0);
 
         return rta;

@@ -92,8 +92,8 @@ export default function TransactionDialog({ open, onClose }: TransactionDialogPr
         try {
             // Derive Account if Category selected
             const category = await db.categories.get(formData.category_id);
-            if (!category || !category.account_id) {
-                showSnackbar("Error: Selected category is not linked to a valid account.");
+            if (formData.category_id !== 'rta' && (!category || !category.account_id)) {
+                showSnackbar("Error: Selected category is not linked to an account.");
                 return;
             }
 
@@ -108,7 +108,7 @@ export default function TransactionDialog({ open, onClose }: TransactionDialogPr
             await db.transaction('rw', db.accounts, db.transactions, async () => {
                 await db.transactions.add({
                     id: transactionId,
-                    category_id: formData.category_id === 'rta' ? undefined : formData.category_id,
+                    to_category_id: formData.category_id,
                     memo: formData.memo.trim(),
                     amount: signedAmount,
                     date: formData.date
@@ -154,8 +154,8 @@ export default function TransactionDialog({ open, onClose }: TransactionDialogPr
                         onChange={handleChange}
                         fullWidth
                     >
-                        <MenuItem value="rta" sx={{ fontStyle: 'italic', fontWeight: 'bold' }}>
-                            To/From Ready to Assign
+                        <MenuItem value='rta' sx={{ fontWeight: 'bold' }}>
+                            Ready to Assign
                         </MenuItem>
                         {categories?.map((cat) => (
                             <MenuItem key={cat.id} value={cat.id}>
@@ -172,6 +172,7 @@ export default function TransactionDialog({ open, onClose }: TransactionDialogPr
                         fullWidth
                     />
 
+                    {/* TODO: Use NumberField, make sure value stays like with TextField */}
                     <TextField
                         label="Amount"
                         name="amount"
@@ -179,7 +180,7 @@ export default function TransactionDialog({ open, onClose }: TransactionDialogPr
                         value={formData.amount}
                         onChange={handleChange}
                         fullWidth
-                        inputProps={{ min: 0 }} // TODO: Deprecated, use NumberField
+                        inputProps={{ min: 0 }}
                     />
 
                     <TextField
