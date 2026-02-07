@@ -97,8 +97,9 @@ export default function BudgetView() {
     const groups = useLiveQuery(() => db.categoryGroups.orderBy('order').toArray());
 
     const readyToAssign = useLiveQuery(async () => {
-        const transactionsWithoutCategories = await db.transactions.where('to_category_id').equals('rta').toArray();
-        const rta = transactionsWithoutCategories.reduce((acc, t) => acc + t.amount, 0);
+        const toRTA = await db.transactions.where('to_category_id').equals('rta').toArray();
+        const fromRTA = await db.transactions.where('from_category_id').equals('rta').toArray();
+        const rta = toRTA.reduce((acc, t) => acc + t.amount, 0) - fromRTA.reduce((acc, t) => acc + t.amount, 0);
 
         return rta;
     });
@@ -200,16 +201,20 @@ function CategoryRow({ category, onEdit, onDelete }: {
     onDelete: (item: Category) => void;
 }) {
     const data = useLiveQuery(async () => {
-            const txs = await db.transactions
-                .where('category_id').equals(category.id)
+            const toTransactions = await db.transactions
+                .where({to_category_id: category.id})
                 .toArray();
 
-            const activity = txs.reduce((acc, t) => acc + t.amount, 0);
+            const fromTransactions = await db.transactions
+                .where({from_category_id: category.id})
+                .toArray();
+
+            const activity = toTransactions.reduce((acc, t) => acc + t.amount, 0) - fromTransactions.reduce((acc, t) => acc + t.amount, 0);
 
             return {
                 available: activity,
                 activity,
-                txCount: txs.length
+                transactionCount: toTransactions.length + fromTransactions.length
             };
     }, [category.id]);
 
@@ -219,7 +224,7 @@ function CategoryRow({ category, onEdit, onDelete }: {
                 {category.name}
             </TableCell>
             <TableCell align="right" sx={{ fontWeight: 'bold' }}>
-                <Tooltip title={`Activity: $${((data?.activity || 0) / 100).toFixed(2)} (${data?.txCount || 0} txs)`}>
+                <Tooltip title={`Activity: $${((data?.activity || 0) / 100).toFixed(2)} (${data?.transactionCount || 0} transaction${data?.transactionCount === 1 ? '' : 's'})`}>
                     <span>${((data?.available || 0) / 100).toFixed(2)}</span>
                 </Tooltip>
             </TableCell>

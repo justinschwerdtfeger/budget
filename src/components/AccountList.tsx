@@ -112,10 +112,15 @@ function AccountItem({ account, onEdit, onDelete }: { account: any, onEdit: () =
 
         for (const cat of categories) {
             // Get all activity (transactions)
-            const txs = await db.transactions
-                .where('category_id').equals(cat.id)
+            const toTransactions = await db.transactions
+                .where({ to_category_id: cat.id })
                 .toArray();
-            const activityTotal = txs.reduce((acc, t) => acc + t.amount, 0);
+
+            const fromTransactions = await db.transactions
+                .where({ from_category_id: cat.id })
+                .toArray();
+
+            const activityTotal = toTransactions.reduce((acc, t) => acc + t.amount, 0) - fromTransactions.reduce((acc, t) => acc + t.amount, 0);
 
             // Available = Activity
             // (If Activity is negative, it subtracts. If positive (refund), it adds.)
