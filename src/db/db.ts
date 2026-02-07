@@ -23,7 +23,6 @@ interface Category {
 
 interface Transaction {
     id: string;
-    account_id: string;
     category_id?: string;
     memo?: string;
     amount: number; // In cents. Positive = income, Negative = expense

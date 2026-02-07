@@ -34,14 +34,12 @@ import {
 // ... imports ...
 
 export default function TransactionDialog({ open, onClose }: TransactionDialogProps) {
-    const accounts = useLiveQuery(() => db.accounts.toArray());
     const categories = useLiveQuery(() => db.categories.toArray());
     const { showSnackbar } = useSnackbar();
     const { registerUndo } = useUndo();
 
     const [type, setType] = React.useState<'outflow' | 'inflow'>('outflow');
     const [formData, setFormData] = React.useState({
-        account_id: '',
         category_id: '',
         memo: '',
         amount: '',
@@ -53,7 +51,6 @@ export default function TransactionDialog({ open, onClose }: TransactionDialogPr
             setFormData(prev => ({
                 ...prev,
                 date: prev.date || format(new Date(), 'yyyy-MM-dd'),
-                account_id: '', // Reset
                 category_id: '' // Reset
             }));
             setType('outflow');
@@ -80,12 +77,7 @@ export default function TransactionDialog({ open, onClose }: TransactionDialogPr
             return;
         }
 
-        const isRTA = formData.category_id === 'rta';
-        if (isRTA && !formData.account_id) {
-            showSnackbar("Error: Please select an account for this Inflow.");
-            return;
-        }
-        if (!isRTA && !formData.category_id) {
+        if (!formData.category_id) {
             showSnackbar("Error: Please select a category.");
             return;
         }
@@ -98,16 +90,11 @@ export default function TransactionDialog({ open, onClose }: TransactionDialogPr
         }
 
         try {
-            let finalAccountId = formData.account_id;
-
             // Derive Account if Category selected
-            if (!isRTA) {
-                const category = await db.categories.get(formData.category_id);
-                if (!category || !category.account_id) {
-                    showSnackbar("Error: Selected category is not linked to a valid account.");
-                    return;
-                }
-                finalAccountId = category.account_id;
+            const category = await db.categories.get(formData.category_id);
+            if (!category || !category.account_id) {
+                showSnackbar("Error: Selected category is not linked to a valid account.");
+                return;
             }
 
             const amountInCents = Math.round(rawAmount * 100);
@@ -121,8 +108,7 @@ export default function TransactionDialog({ open, onClose }: TransactionDialogPr
             await db.transaction('rw', db.accounts, db.transactions, async () => {
                 await db.transactions.add({
                     id: transactionId,
-                    account_id: finalAccountId,
-                    category_id: isRTA ? undefined : formData.category_id,
+                    category_id: formData.category_id === 'rta' ? undefined : formData.category_id,
                     memo: formData.memo.trim(),
                     amount: signedAmount,
                     date: formData.date
@@ -178,25 +164,6 @@ export default function TransactionDialog({ open, onClose }: TransactionDialogPr
                         ))}
                     </TextField>
 
-                    {/* Account Select (Only if RTA) */}
-                    {formData.category_id === 'rta' && (
-                        <TextField
-                            select
-                            label="Account"
-                            name="account_id"
-                            value={formData.account_id}
-                            onChange={handleChange}
-                            fullWidth
-                            helperText="Which account is this transaction affecting?"
-                        >
-                            {accounts?.map((account) => (
-                                <MenuItem key={account.id} value={account.id}>
-                                    {account.name}
-                                </MenuItem>
-                            ))}
-                        </TextField>
-                    )}
-
                     <TextField
                         label="Memo"
                         name="memo"
@@ -212,7 +179,7 @@ export default function TransactionDialog({ open, onClose }: TransactionDialogPr
                         value={formData.amount}
                         onChange={handleChange}
                         fullWidth
-                        inputProps={{ min: 0 }}
+                        inputProps={{ min: 0 }} // TODO: Deprecated, use NumberField
                     />
 
                     <TextField

@@ -82,7 +82,6 @@ export default function AddAccountDialog({ open, onClose, editAccount }: AddAcco
                     if (balanceInCents !== 0) {
                         await db.transactions.add({
                             id: uuidv4(),
-                            account_id: acctId,
                             category_id: undefined, // RTA
                             amount: balanceInCents, // Positive = Inflow
                             date: format(new Date(), 'yyyy-MM-dd'),

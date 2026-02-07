@@ -21,11 +21,9 @@ export default function TransactionList() {
         const txs = await db.transactions.orderBy('date').reverse().toArray();
         // Enrich with Account and Category names
         return Promise.all(txs.map(async (tx) => {
-            const account = await db.accounts.get(tx.account_id);
             const category = tx.category_id ? await db.categories.get(tx.category_id) : null;
             return {
                 ...tx,
-                accountName: account?.name || 'Unknown Account',
                 categoryName: category?.name || 'Uncategorized'
             };
         }));
@@ -45,7 +43,6 @@ export default function TransactionList() {
                             <TableCell>Date</TableCell>
                             <TableCell>Memo</TableCell>
                             <TableCell>Category</TableCell>
-                            <TableCell>Account</TableCell>
                             <TableCell align="right">Amount</TableCell>
                         </TableRow>
                     </TableHead>
@@ -55,7 +52,6 @@ export default function TransactionList() {
                                 <TableCell>{format(new Date(tx.date), 'MMM d, yyyy')}</TableCell>
                                 <TableCell>{tx.memo || '(No Memo)'}</TableCell>
                                 <TableCell>{tx.categoryName}</TableCell>
-                                <TableCell>{tx.accountName}</TableCell>
                                 <TableCell align="right" sx={{ color: tx.amount < 0 ? 'text.primary' : 'success.main', fontWeight: 'bold' }}>
                                     ${(tx.amount / 100).toFixed(2)}
                                 </TableCell>
