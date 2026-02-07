@@ -123,7 +123,7 @@ export default function TransactionDialog({ open, onClose }: TransactionDialogPr
                     id: transactionId,
                     account_id: finalAccountId,
                     category_id: isRTA ? undefined : formData.category_id,
-                    memo: formData.payee.trim(),
+                    memo: formData.memo.trim(),
                     amount: signedAmount,
                     date: formData.date
                 });
