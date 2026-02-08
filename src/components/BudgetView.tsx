@@ -114,10 +114,10 @@ export default function BudgetView() {
 
             <TableContainer component={Paper} elevation={0} variant="outlined">
                 <Table aria-label="collapsible table">
-                    <TableHead>
+                    <TableHead sx={{ bgcolor: 'action.hover' }}>
                         <TableRow>
-                            <TableCell>CATEGORY</TableCell>
-                            <TableCell align="right">AVAILABLE</TableCell>
+                            <TableCell sx={{ pl: 4}}><Typography variant="subtitle1" fontWeight="bold">Category</Typography></TableCell>
+                            <TableCell align="right"><Typography variant="subtitle1" fontWeight="bold">Available</Typography></TableCell>
                             <TableCell padding="checkbox" />
                         </TableRow>
                     </TableHead>
@@ -218,8 +218,8 @@ function CategoryRow({ category, onEdit, onDelete }: {
     }, [category.id]);
 
     return (
-        <TableRow sx={{ '& > *': { borderBottom: 'unset' } }}>
-            <TableCell component="th" scope="row" sx={{ pl: 4 }}>
+        <TableRow>
+            <TableCell scope="row" sx={{ pl: 4 }}>
                 {category.name}
             </TableCell>
             <TableCell align="right" sx={{ fontWeight: 'bold' }}>
@@ -227,7 +227,7 @@ function CategoryRow({ category, onEdit, onDelete }: {
                     <span>${((data?.available || 0) / 100).toFixed(2)}</span>
                 </Tooltip>
             </TableCell>
-            <TableCell align="right" padding="none">
+            <TableCell align="center" padding="none">
                 <RowMenu onEdit={() => onEdit(category)} onDelete={() => onDelete(category)} />
             </TableCell>
         </TableRow>
@@ -251,9 +251,9 @@ function GroupRow({ group, onAddCategory, onEdit, onDelete, onEditCategory, onDe
 
     return (
         <React.Fragment>
-            <TableRow sx={{ '& > *': { borderBottom: 'unset' }, bgcolor: 'action.hover' }}>
-                <TableCell colSpan={4}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pr: 2 }}>
+            <TableRow sx={{bgcolor: 'action.hover', height: '48px'}}>
+                <TableCell colSpan={3} padding="none" sx={{ px: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
                         <Box sx={{ display: 'flex', alignItems: 'center' }}>
                             <IconButton
                                 aria-label="expand row"
@@ -267,6 +267,7 @@ function GroupRow({ group, onAddCategory, onEdit, onDelete, onEditCategory, onDe
                             </Typography>
                         </Box>
                         <Box>
+                            {/* TODO: Switch to a mui collapsible */}
                             <IconButton size="small" onClick={() => onAddCategory(group.id)}>
                                 <AddIcon fontSize="small" />
                             </IconButton>
@@ -274,7 +275,6 @@ function GroupRow({ group, onAddCategory, onEdit, onDelete, onEditCategory, onDe
                         </Box>
                     </Box>
                 </TableCell>
-                <TableCell />
             </TableRow>
             {open && categories.map(cat => (
                 <CategoryRow

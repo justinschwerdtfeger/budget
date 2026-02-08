@@ -22,78 +22,78 @@ export default function Home() {
 
   const { showSnackbar } = useSnackbar();
 
-  const seedData = async () => {
-    try {
-      console.log("Seeding data...");
-      const count = await db.categoryGroups.count();
-      if (count > 0) {
-        setConfirmConfig({
-          title: "Overwrite Data?",
-          content: "Data already exists. This will overwrite everything.",
-          action: performSeed
-        });
-        setConfirmOpen(true);
-        return;
-      }
-      await performSeed();
-    } catch (e) {
-      console.error("Seed Check Failed", e);
-      showSnackbar("Seed Check Failed: " + e);
-    }
-  };
+  // const seedData = async () => {
+  //   try {
+  //     console.log("Seeding data...");
+  //     const count = await db.categoryGroups.count();
+  //     if (count > 0) {
+  //       setConfirmConfig({
+  //         title: "Overwrite Data?",
+  //         content: "Data already exists. This will overwrite everything.",
+  //         action: performSeed
+  //       });
+  //       setConfirmOpen(true);
+  //       return;
+  //     }
+  //     await performSeed();
+  //   } catch (e) {
+  //     console.error("Seed Check Failed", e);
+  //     showSnackbar("Seed Check Failed: " + e);
+  //   }
+  // };
 
-  const performSeed = async () => {
-    try {
-      await db.transaction('rw', [db.categoryGroups, db.categories, db.accounts, db.transactions], async () => {
-        await db.categoryGroups.clear();
-        await db.categories.clear();
-        await db.accounts.clear();
-        await db.transactions.clear();
+  // const performSeed = async () => {
+  //   try {
+  //     await db.transaction('rw', [db.categoryGroups, db.categories, db.accounts, db.transactions], async () => {
+  //       await db.categoryGroups.clear();
+  //       await db.categories.clear();
+  //       await db.accounts.clear();
+  //       await db.transactions.clear();
 
-        // Groups
-        const g1 = uuidv4();
-        const g2 = uuidv4();
-        await db.categoryGroups.bulkAdd([
-          { id: g1, name: 'Immediate Obligations', order: 1 },
-          { id: g2, name: 'True Expenses', order: 2 }
-        ]);
+  //       // Groups
+  //       const g1 = uuidv4();
+  //       const g2 = uuidv4();
+  //       await db.categoryGroups.bulkAdd([
+  //         { id: g1, name: 'Immediate Obligations', order: 1 },
+  //         { id: g2, name: 'True Expenses', order: 2 }
+  //       ]);
 
-        // Account
-        const acctId = uuidv4();
-        await db.accounts.add({
-          id: acctId,
-          name: 'Checking',
-          type: 'checking'
-          // balance removed
-        });
+  //       // Account
+  //       const acctId = uuidv4();
+  //       await db.accounts.add({
+  //         id: acctId,
+  //         name: 'Checking',
+  //         type: 'checking'
+  //         // balance removed
+  //       });
 
-        // Categories
-        await db.categories.bulkAdd([
-          { id: uuidv4(), group_id: g1, account_id: acctId, name: 'Rent/Mortgage', order: 1 },
-          { id: uuidv4(), group_id: g1, account_id: acctId, name: 'Groceries', order: 2 },
-          { id: uuidv4(), group_id: g2, account_id: acctId, name: 'Auto Maintenance', order: 1 },
-        ]);
+  //       // Categories
+  //       await db.categories.bulkAdd([
+  //         { id: uuidv4(), group_id: g1, account_id: acctId, name: 'Rent/Mortgage', order: 1 },
+  //         { id: uuidv4(), group_id: g1, account_id: acctId, name: 'Groceries', order: 2 },
+  //         { id: uuidv4(), group_id: g2, account_id: acctId, name: 'Auto Maintenance', order: 1 },
+  //       ]);
 
-        // Initial Balance Transaction for RTA (No Category)
-        await db.transactions.add({
-          id: uuidv4(),
-          to_category_id: 'rta', // RTA
-          amount: 100000,
-          date: format(new Date(), 'yyyy-MM-dd')
-        });
+  //       // Initial Balance Transaction for RTA (No Category)
+  //       await db.transactions.add({
+  //         id: uuidv4(),
+  //         to_category_id: 'rta', // RTA
+  //         amount: 100000,
+  //         date: format(new Date(), 'yyyy-MM-dd')
+  //       });
 
-        // Seed some budget assignments for the initial period
-        // Rent: $0, Groceries: $0 (Clean slate for user to assign)
-        // Or assign some to show functionality?
-        // Let's assign $0. User can assign.
-      });
-      showSnackbar("Seed Data Successful!");
-      setTimeout(() => window.location.reload(), 1000);
-    } catch (e) {
-      console.error("Seed Failed", e);
-      showSnackbar("Seed Failed: " + e);
-    }
-  };
+  //       // Seed some budget assignments for the initial period
+  //       // Rent: $0, Groceries: $0 (Clean slate for user to assign)
+  //       // Or assign some to show functionality?
+  //       // Let's assign $0. User can assign.
+  //     });
+  //     showSnackbar("Seed Data Successful!");
+  //     setTimeout(() => window.location.reload(), 1000);
+  //   } catch (e) {
+  //     console.error("Seed Failed", e);
+  //     showSnackbar("Seed Failed: " + e);
+  //   }
+  // };
 
   const confirmReset = () => {
     setConfirmConfig({
@@ -121,7 +121,7 @@ export default function Home() {
   };
 
   return (
-    <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
+    <Container maxWidth="xl" sx={{ mt: 4, mb: 4, pl: 0, pr: 0 }}>
       <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 'bold' }}>
           My Budget
@@ -135,9 +135,9 @@ export default function Home() {
           <Button color="error" onClick={confirmReset} sx={{ mr: 1 }}>
             Reset Data
           </Button>
-          <Button variant="outlined" onClick={seedData} sx={{ mr: 1 }}>
+          {/* <Button variant="outlined" onClick={seedData} sx={{ mr: 1 }}>
             Seed Initial Data
-          </Button>
+          </Button> */}
           <ModeSwitch />
         </Box>
       </Box>
@@ -150,9 +150,7 @@ export default function Home() {
 
         {/* Main Content: Budget */}
         <Grid size={{ xs: 12, md: 9 }}>
-          <Paper sx={{ p: 2, display: 'flex', flexDirection: 'column' }}>
-            <BudgetView />
-          </Paper>
+          <BudgetView />
         </Grid>
       </Grid>
 
