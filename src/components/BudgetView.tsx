@@ -20,7 +20,8 @@ import {
     MenuItem,
     ListItemIcon,
     ListItemText,
-    Tooltip
+    Tooltip,
+    Collapse
 } from '@mui/material';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
@@ -116,7 +117,7 @@ export default function BudgetView() {
                 <Table aria-label="collapsible table">
                     <TableHead sx={{ bgcolor: 'action.hover' }}>
                         <TableRow>
-                            <TableCell sx={{ pl: 4}}><Typography variant="subtitle1" fontWeight="bold">Category</Typography></TableCell>
+                            <TableCell sx={{ pl: 2 }}><Typography variant="subtitle1" fontWeight="bold">Category</Typography></TableCell>
                             <TableCell align="right"><Typography variant="subtitle1" fontWeight="bold">Available</Typography></TableCell>
                             <TableCell padding="checkbox" />
                         </TableRow>
@@ -219,7 +220,7 @@ function CategoryRow({ category, onEdit, onDelete }: {
 
     return (
         <TableRow>
-            <TableCell scope="row" sx={{ pl: 4 }}>
+            <TableCell scope="row" sx={{ pl: 2 }}>
                 {category.name}
             </TableCell>
             <TableCell align="right" sx={{ fontWeight: 'bold' }}>
@@ -227,7 +228,7 @@ function CategoryRow({ category, onEdit, onDelete }: {
                     <span>${((data?.available || 0) / 100).toFixed(2)}</span>
                 </Tooltip>
             </TableCell>
-            <TableCell align="center" padding="none">
+            <TableCell align="center" padding="none" sx={{ width: '48px' }}>
                 <RowMenu onEdit={() => onEdit(category)} onDelete={() => onDelete(category)} />
             </TableCell>
         </TableRow>
@@ -251,9 +252,9 @@ function GroupRow({ group, onAddCategory, onEdit, onDelete, onEditCategory, onDe
 
     return (
         <React.Fragment>
-            <TableRow sx={{bgcolor: 'action.hover', height: '48px'}}>
+            <TableRow sx={{ bgcolor: 'action.hover', height: '48px' }}>
                 <TableCell colSpan={3} padding="none" sx={{ px: 1 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <Box sx={{ display: 'flex', alignItems: 'center' }}>
                             <IconButton
                                 aria-label="expand row"
@@ -267,7 +268,6 @@ function GroupRow({ group, onAddCategory, onEdit, onDelete, onEditCategory, onDe
                             </Typography>
                         </Box>
                         <Box>
-                            {/* TODO: Switch to a mui collapsible */}
                             <IconButton size="small" onClick={() => onAddCategory(group.id)}>
                                 <AddIcon fontSize="small" />
                             </IconButton>
@@ -276,14 +276,25 @@ function GroupRow({ group, onAddCategory, onEdit, onDelete, onEditCategory, onDe
                     </Box>
                 </TableCell>
             </TableRow>
-            {open && categories.map(cat => (
-                <CategoryRow
-                    key={cat.id}
-                    category={cat}
-                    onEdit={(item) => onEditCategory(item, group.id)}
-                    onDelete={onDeleteCategory}
-                />
-            ))}
+            <TableRow>
+                <TableCell padding="none" colSpan={3}>
+                    <Collapse in={open} timeout="auto" unmountOnExit>
+                        <Table aria-label="categories">
+                            <TableBody>
+                                {categories.map(cat => (
+                                    <CategoryRow
+                                        key={cat.id}
+                                        category={cat}
+                                        onEdit={(item) => onEditCategory(item, group.id)}
+                                        onDelete={onDeleteCategory}
+                                    />
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </Collapse>
+                </TableCell>
+            </TableRow>
+
         </React.Fragment>
     );
 }
