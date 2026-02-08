@@ -87,7 +87,7 @@ export default function MoneyField({
             onChange={props.onChange}
             onKeyUp={props.onKeyUp}
             onKeyDown={props.onKeyDown}
-            onFocus={props.onFocus}
+            onFocus={e => e.target.select()}
             slotProps={{
               input: props,
             }}
