@@ -30,6 +30,8 @@ import {
     ToggleButton,
     ToggleButtonGroup
 } from '@mui/material';
+import MoneyField from './MoneyField';
+import { NumberFieldRoot } from '@base-ui/react';
 
 // ... imports ...
 
@@ -46,9 +48,11 @@ export default function TransactionDialog({ open, onClose }: TransactionDialogPr
         amount: '',
         date: ''
     });
+    const [initialAmount, setInitialAmount] = React.useState(0);
 
     React.useEffect(() => {
         if (open) {
+            setInitialAmount(Number(formData.amount));
             setFormData(prev => ({
                 ...prev,
                 date: prev.date || format(new Date(), 'yyyy-MM-dd'),
@@ -59,6 +63,10 @@ export default function TransactionDialog({ open, onClose }: TransactionDialogPr
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
+    };
+
+    const handleAmountChange = (value: number | null, _: NumberFieldRoot.ChangeEventDetails) => {
+        setFormData({ ...formData, amount: Number(value).toFixed(2) });
     };
 
     const handleTypeChange = (
@@ -161,23 +169,23 @@ export default function TransactionDialog({ open, onClose }: TransactionDialogPr
 
                     {/* From Category Select */}
                     {type === 'transfer' && (
-                    <TextField
-                        select
-                        label="Source Category"
-                        name="from_category_id"
-                        value={formData.from_category_id}
-                        onChange={handleChange}
-                        fullWidth
-                    >
-                        <MenuItem value='rta' sx={{ fontWeight: 'bold' }}>
-                            Ready to Assign
-                        </MenuItem>
-                        {categories?.map((cat) => (
-                            <MenuItem key={cat.id} value={cat.id}>
-                                {cat.name}
+                        <TextField
+                            select
+                            label="Source Category"
+                            name="from_category_id"
+                            value={formData.from_category_id}
+                            onChange={handleChange}
+                            fullWidth
+                        >
+                            <MenuItem value='rta' sx={{ fontWeight: 'bold' }}>
+                                Ready to Assign
                             </MenuItem>
-                        ))}
-                    </TextField>
+                            {categories?.map((cat) => (
+                                <MenuItem key={cat.id} value={cat.id}>
+                                    {cat.name}
+                                </MenuItem>
+                            ))}
+                        </TextField>
                     )}
 
                     {/* To Category Select */}
@@ -207,15 +215,12 @@ export default function TransactionDialog({ open, onClose }: TransactionDialogPr
                         fullWidth
                     />
 
-                    {/* TODO: Use NumberField, make sure value stays like with TextField */}
-                    <TextField
+                    <MoneyField
                         label="Amount"
                         name="amount"
-                        type="number"
-                        value={formData.amount}
-                        onChange={handleChange}
-                        fullWidth
-                        inputProps={{ min: 0 }}
+                        defaultValue={initialAmount}
+                        onValueChange={handleAmountChange}
+                        min={0}
                     />
 
                     <TextField

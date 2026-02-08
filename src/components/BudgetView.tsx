@@ -34,7 +34,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { useSnackbar } from './AppSnackbar';
 import ConfirmDialog from './ConfirmDialog';
 import { useUndo } from './UndoProvider';
-import NumberField from './NumberField';
 
 export default function BudgetView() {
     // Dialog State
@@ -201,21 +200,21 @@ function CategoryRow({ category, onEdit, onDelete }: {
     onDelete: (item: Category) => void;
 }) {
     const data = useLiveQuery(async () => {
-            const toTransactions = await db.transactions
-                .where({to_category_id: category.id})
-                .toArray();
+        const toTransactions = await db.transactions
+            .where({ to_category_id: category.id })
+            .toArray();
 
-            const fromTransactions = await db.transactions
-                .where({from_category_id: category.id})
-                .toArray();
+        const fromTransactions = await db.transactions
+            .where({ from_category_id: category.id })
+            .toArray();
 
-            const activity = toTransactions.reduce((acc, t) => acc + t.amount, 0) - fromTransactions.reduce((acc, t) => acc + t.amount, 0);
+        const activity = toTransactions.reduce((acc, t) => acc + t.amount, 0) - fromTransactions.reduce((acc, t) => acc + t.amount, 0);
 
-            return {
-                available: activity,
-                activity,
-                transactionCount: toTransactions.length + fromTransactions.length
-            };
+        return {
+            available: activity,
+            activity,
+            transactionCount: toTransactions.length + fromTransactions.length
+        };
     }, [category.id]);
 
     return (
