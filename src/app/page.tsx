@@ -1,181 +1,196 @@
 'use client';
 
 import * as React from 'react';
-import { Container, Box, Grid, Button, Typography, Paper, Fab } from '@mui/material';
+import { Container, Box, Grid, Button, Typography, Paper, Fab, BottomNavigation, BottomNavigationAction, useMediaQuery, useTheme, AppBar, Toolbar, IconButton, Dialog, DialogTitle, DialogContent, Slide } from '@mui/material';
+import { TransitionProps } from '@mui/material/transitions';
 import AddIcon from '@mui/icons-material/Add';
+import DashboardIcon from '@mui/icons-material/Dashboard';
+import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
+import ReceiptIcon from '@mui/icons-material/Receipt';
+import SettingsIcon from '@mui/icons-material/Settings';
+import CloseIcon from '@mui/icons-material/Close';
+
 import BudgetView from '@/components/BudgetView';
 import AccountList from '@/components/AccountList';
 import TransactionDialog from '@/components/TransactionDialog';
-import { db } from '@/db/db';
-import { v4 as uuidv4 } from 'uuid';
-import { format } from 'date-fns';
-import Link from 'next/link';
-import ConfirmDialog from '@/components/ConfirmDialog';
-import { SnackbarProvider, useSnackbar } from '@/components/AppSnackbar';
+import TransactionList from '@/components/TransactionList';
+import SettingsView from '@/components/SettingsView';
+import { useSnackbar } from '@/components/AppSnackbar';
+import UndoFloatingButton from '@/components/UndoFloatingButton';
 
-import ModeSwitch from '@/components/ModeSwitch';
+const Transition = React.forwardRef(function Transition(
+  props: TransitionProps & {
+    children: React.ReactElement<any, any>;
+  },
+  ref: React.Ref<unknown>,
+) {
+  return <Slide direction="up" ref={ref} {...props} />;
+});
 
 export default function Home() {
-  const [openTransaction, setOpenTransaction] = React.useState(false);
-  const [confirmOpen, setConfirmOpen] = React.useState(false);
-  const [confirmConfig, setConfirmConfig] = React.useState({ title: '', content: '', action: () => { } });
-
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { showSnackbar } = useSnackbar();
 
-  // const seedData = async () => {
-  //   try {
-  //     console.log("Seeding data...");
-  //     const count = await db.categoryGroups.count();
-  //     if (count > 0) {
-  //       setConfirmConfig({
-  //         title: "Overwrite Data?",
-  //         content: "Data already exists. This will overwrite everything.",
-  //         action: performSeed
-  //       });
-  //       setConfirmOpen(true);
-  //       return;
-  //     }
-  //     await performSeed();
-  //   } catch (e) {
-  //     console.error("Seed Check Failed", e);
-  //     showSnackbar("Seed Check Failed: " + e);
-  //   }
-  // };
+  // State
+  const [activeView, setActiveView] = React.useState<'budget' | 'transactions'>('budget');
+  const [mobileTab, setMobileTab] = React.useState('plan');
+  const [settingsOpen, setSettingsOpen] = React.useState(false);
+  const [openTransaction, setOpenTransaction] = React.useState(false);
 
-  // const performSeed = async () => {
-  //   try {
-  //     await db.transaction('rw', [db.categoryGroups, db.categories, db.accounts, db.transactions], async () => {
-  //       await db.categoryGroups.clear();
-  //       await db.categories.clear();
-  //       await db.accounts.clear();
-  //       await db.transactions.clear();
-
-  //       // Groups
-  //       const g1 = uuidv4();
-  //       const g2 = uuidv4();
-  //       await db.categoryGroups.bulkAdd([
-  //         { id: g1, name: 'Immediate Obligations', order: 1 },
-  //         { id: g2, name: 'True Expenses', order: 2 }
-  //       ]);
-
-  //       // Account
-  //       const acctId = uuidv4();
-  //       await db.accounts.add({
-  //         id: acctId,
-  //         name: 'Checking',
-  //         type: 'checking'
-  //         // balance removed
-  //       });
-
-  //       // Categories
-  //       await db.categories.bulkAdd([
-  //         { id: uuidv4(), group_id: g1, account_id: acctId, name: 'Rent/Mortgage', order: 1 },
-  //         { id: uuidv4(), group_id: g1, account_id: acctId, name: 'Groceries', order: 2 },
-  //         { id: uuidv4(), group_id: g2, account_id: acctId, name: 'Auto Maintenance', order: 1 },
-  //       ]);
-
-  //       // Initial Balance Transaction for RTA (No Category)
-  //       await db.transactions.add({
-  //         id: uuidv4(),
-  //         to_category_id: 'rta', // RTA
-  //         amount: 100000,
-  //         date: format(new Date(), 'yyyy-MM-dd')
-  //       });
-
-  //       // Seed some budget assignments for the initial period
-  //       // Rent: $0, Groceries: $0 (Clean slate for user to assign)
-  //       // Or assign some to show functionality?
-  //       // Let's assign $0. User can assign.
-  //     });
-  //     showSnackbar("Seed Data Successful!");
-  //     setTimeout(() => window.location.reload(), 1000);
-  //   } catch (e) {
-  //     console.error("Seed Failed", e);
-  //     showSnackbar("Seed Failed: " + e);
-  //   }
-  // };
-
-  const confirmReset = () => {
-    setConfirmConfig({
-      title: "Reset Data?",
-      content: "Are you sure? This will delete ALL data vertically forever (a long time).",
-      action: performReset
-    });
-    setConfirmOpen(true);
+  const handleMobileChange = (event: React.SyntheticEvent, newValue: string) => {
+    setMobileTab(newValue);
   };
 
-  const performReset = async () => {
-    try {
-      await db.transaction('rw', [db.categoryGroups, db.categories, db.accounts, db.transactions], async () => {
-        await db.categoryGroups.clear();
-        await db.categories.clear();
-        await db.accounts.clear();
-        await db.transactions.clear();
-      });
-      showSnackbar("Reset Successful");
-      setTimeout(() => window.location.reload(), 1000);
-    } catch (e) {
-      console.error("Reset Failed", e);
-      showSnackbar("Reset Failed: " + e);
+  // Content Renderers
+  const renderMobileContent = () => {
+    switch (mobileTab) {
+      case 'plan':
+        return <BudgetView />;
+      case 'accounts':
+        return <AccountList />;
+      case 'transactions':
+        return <TransactionList />;
+      case 'settings':
+        return <SettingsView />;
+      default:
+        return <BudgetView />;
     }
   };
 
+  const renderDesktopMain = () => {
+    if (activeView === 'transactions') {
+      return <TransactionList />;
+    }
+    return <BudgetView />;
+  };
+
   return (
-    <Container maxWidth="xl" sx={{ mt: 4, mb: 4, pl: 0, pr: 0 }}>
-      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 'bold' }}>
-          My Budget
-        </Typography>
-        <Box>
-          <Link href="/transactions" passHref style={{ textDecoration: 'none' }}>
-            <Button variant="contained" color="primary" sx={{ mr: 1 }}>
+    <Box sx={{
+      display: 'flex',
+      flexDirection: 'column',
+      height: '100vh',
+      overflow: 'hidden',
+      bgcolor: 'background.default'
+    }}>
+      {/* Desktop App Bar */}
+      {!isMobile && (
+        <AppBar position="static" color="default" elevation={1}>
+          <Toolbar>
+            <Box sx={{ flexGrow: 1 }} />
+            <Button
+              color={activeView === 'budget' ? 'primary' : 'inherit'}
+              onClick={() => setActiveView('budget')}
+              sx={{ mr: 1 }}
+            >
+              Budget
+            </Button>
+            <Button
+              color={activeView === 'transactions' ? 'primary' : 'inherit'}
+              onClick={() => setActiveView('transactions')}
+              sx={{ mr: 1 }}
+            >
               Transactions
             </Button>
-          </Link>
-          <Button color="error" onClick={confirmReset} sx={{ mr: 1 }}>
-            Reset Data
-          </Button>
-          {/* <Button variant="outlined" onClick={seedData} sx={{ mr: 1 }}>
-            Seed Initial Data
-          </Button> */}
-          <ModeSwitch />
-        </Box>
+            <IconButton onClick={() => setSettingsOpen(true)}>
+              <SettingsIcon />
+            </IconButton>
+          </Toolbar>
+        </AppBar>
+      )}
+
+      {/* Main Content Area */}
+      <Box sx={{
+        flexGrow: 1,
+        overflow: 'auto',
+        p: isMobile ? 0 : 3,
+        mb: isMobile ? '56px' : 0 // Space for bottom nav
+      }}>
+        {isMobile ? (
+          <Container maxWidth="lg" sx={{ p: 0}}>
+            {renderMobileContent()}
+          </Container>
+        ) : (
+          <Container maxWidth="xl">
+            <Grid container spacing={3}>
+              <Grid size={{ xs: 12, md: 3 }}>
+                <AccountList />
+              </Grid>
+              <Grid size={{ xs: 12, md: 9 }}>
+                {renderDesktopMain()}
+              </Grid>
+            </Grid>
+          </Container>
+        )}
       </Box>
 
-      <Grid container spacing={3}>
-        {/* Left Sidebar: Accounts */}
-        <Grid size={{ xs: 12, md: 3 }}>
-          <AccountList />
-        </Grid>
+      {/* Mobile Bottom Navigation */}
+      {isMobile && (
+        <Paper sx={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 1000 }} elevation={3}>
+          <BottomNavigation value={mobileTab} onChange={handleMobileChange} showLabels>
+            <BottomNavigationAction label="Plan" value="plan" icon={<DashboardIcon />} />
+            <BottomNavigationAction label="Accounts" value="accounts" icon={<AccountBalanceIcon />} />
+            <BottomNavigationAction label="Transactions" value="transactions" icon={<ReceiptIcon />} />
+            <BottomNavigationAction label="Settings" value="settings" icon={<SettingsIcon />} />
+          </BottomNavigation>
+        </Paper>
+      )}
 
-        {/* Main Content: Budget */}
-        <Grid size={{ xs: 12, md: 9 }}>
-          <BudgetView />
-        </Grid>
-      </Grid>
+      {/* Floating Add Button (only show on plan or transactions view) */}
+      {(!isMobile || (mobileTab === 'plan' || mobileTab === 'transactions')) && (
+        <Fab
+          color="primary"
+          aria-label="add"
+          sx={{
+            position: 'fixed',
+            bottom: isMobile ? 72 : 32,
+            right: 32,
+            zIndex: 1100
+          }}
+          onClick={() => setOpenTransaction(true)}
+        >
+          <AddIcon />
+        </Fab>
+      )}
 
-      <Fab
-        color="primary"
-        aria-label="add"
-        sx={{ position: 'fixed', bottom: 16, right: 16 }}
-        onClick={() => setOpenTransaction(true)}
+      {/* Floating Undo Button */}
+      {(!isMobile || mobileTab === 'plan') && (
+        <UndoFloatingButton isMobile={isMobile} />
+      )}
+
+      {/* Settings Dialog (Desktop Only) */}
+      <Dialog
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        TransitionComponent={Transition}
       >
-        <AddIcon />
-      </Fab>
+        <DialogTitle>
+          Settings
+          <IconButton
+            aria-label="close"
+            onClick={() => setSettingsOpen(false)}
+            sx={{
+              position: 'absolute',
+              right: 8,
+              top: 8,
+              color: (theme) => theme.palette.grey[500],
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
+          <SettingsView />
+        </DialogContent>
+      </Dialog>
 
+      {/* Transaction Dialog */}
       <TransactionDialog
         open={openTransaction}
         onClose={() => setOpenTransaction(false)}
       />
-
-      <ConfirmDialog
-        open={confirmOpen}
-        onClose={() => setConfirmOpen(false)}
-        title={confirmConfig.title}
-        content={confirmConfig.content}
-        onConfirm={confirmConfig.action}
-        isDestructive={true}
-      />
-    </Container>
+    </Box>
   );
 }

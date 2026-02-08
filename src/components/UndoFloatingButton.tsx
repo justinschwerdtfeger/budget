@@ -5,7 +5,7 @@ import { Fab, Tooltip, Zoom } from '@mui/material';
 import UndoIcon from '@mui/icons-material/Undo';
 import { useUndo } from './UndoProvider';
 
-export default function UndoFloatingButton() {
+export default function UndoFloatingButton({ isMobile }: { isMobile: boolean }) {
     const { undoAction, undoDescription, performUndo } = useUndo();
 
     return (
@@ -18,7 +18,7 @@ export default function UndoFloatingButton() {
                     onClick={performUndo}
                     sx={{
                         position: 'fixed',
-                        bottom: 32,
+                        bottom: isMobile ? 72 : 32,
                         left: 32,
                         zIndex: 2000 // Ensure it's above other elements
                     }}

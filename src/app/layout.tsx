@@ -8,7 +8,6 @@ import ModeSwitch from '@/components/ModeSwitch';
 import '@/app/global.css';
 import { UndoProvider } from '@/components/UndoProvider';
 import { SnackbarProvider } from '@/components/AppSnackbar';
-import UndoFloatingButton from '@/components/UndoFloatingButton';
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -34,7 +33,6 @@ export default function RootLayout(props: { children: React.ReactNode }) {
             <UndoProvider>
               <SnackbarProvider>
                 {props.children}
-                <UndoFloatingButton />
               </SnackbarProvider>
             </UndoProvider>
           </ThemeProvider>

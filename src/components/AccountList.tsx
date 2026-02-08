@@ -61,7 +61,7 @@ export default function AccountList() {
     };
 
     return (
-        <Paper elevation={0} variant="outlined" sx={{ width: '100%', maxWidth: 360, bgcolor: 'background.paper' }}>
+        <Paper elevation={0} variant="outlined" sx={{ width: '100%', bgcolor: 'background.paper' }}>
             <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Typography variant="h6" component="div">
                     Budget

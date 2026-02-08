@@ -105,7 +105,7 @@ export default function BudgetView() {
     });
 
     return (
-        <Box sx={{ width: '100%', mt: 2 }}>
+        <Box sx={{ width: '100%' }}>
             <Paper elevation={1} sx={{ p: 2, mb: 2, bgcolor: 'primary.light', color: 'primary.contrastText' }}>
                 <Typography variant="h6" align="center">Ready to Assign</Typography>
                 <Typography variant="h3" align="center" sx={{ fontWeight: 'bold' }}>
@@ -219,7 +219,7 @@ function CategoryRow({ category, onEdit, onDelete }: {
     }, [category.id]);
 
     return (
-        <TableRow>
+        <TableRow hover>
             <TableCell scope="row" sx={{ pl: 2 }}>
                 {category.name}
             </TableCell>
