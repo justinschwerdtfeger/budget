@@ -1,0 +1,21 @@
+{
+  "name": "BursaBudget",
+  "short_name": "Bursa",
+  "icons": [
+    {
+      "src": "/web-app-manifest-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/web-app-manifest-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "theme_color": "#c6eeb5",
+  "background_color": "#c6eeb5",
+  "display": "standalone"
+}
