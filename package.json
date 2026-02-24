@@ -1,12 +1,11 @@
 {
-  "name": "material-ui-nextjs-ts",
-  "version": "7.0.0",
+  "name": "bursabudget",
+  "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build --webpack",
-    "start": "next start",
-    "post-update": "echo \"codesandbox preview only, need an update\" && pnpm update --latest"
+    "start": "next start"
   },
   "dependencies": {
     "@base-ui/react": "^1.1.0",

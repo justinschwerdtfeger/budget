@@ -12,8 +12,8 @@ import { Metadata } from 'next';
 
 export const metadata: Metadata = {
   metadataBase: new URL("localhost:3000"), // use a correct url otherwise your app won’t build
-  title: "Budgety",
-  description: "your app description here",
+  title: "BursaBudget",
+  description: "Your personal finance manager",
   category: "website",
   generator: "Next.js", // framework used
 
