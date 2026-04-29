@@ -15,6 +15,8 @@ import AccountList from '@/components/AccountList';
 import TransactionDialog from '@/components/TransactionDialog';
 import TransactionList from '@/components/TransactionList';
 import SettingsView from '@/components/SettingsView';
+import TransferDialog from '@/components/TransferDialog';
+import SyncAltIcon from '@mui/icons-material/SyncAlt';
 import { useSnackbar } from '@/components/AppSnackbar';
 import UndoFloatingButton from '@/components/UndoFloatingButton';
 
@@ -37,6 +39,7 @@ export default function Home() {
   const [mobileTab, setMobileTab] = React.useState('plan');
   const [settingsOpen, setSettingsOpen] = React.useState(false);
   const [openTransaction, setOpenTransaction] = React.useState(false);
+  const [openTransfer, setOpenTransfer] = React.useState(false);
 
   const handleMobileChange = (event: React.SyntheticEvent, newValue: string) => {
     setMobileTab(newValue);
@@ -138,19 +141,34 @@ export default function Home() {
 
       {/* Floating Add Button (only show on plan or transactions view) */}
       {(!isMobile || (mobileTab === 'plan' || mobileTab === 'transactions')) && (
-        <Fab
-          color="primary"
-          aria-label="add"
-          sx={{
-            position: 'fixed',
-            bottom: isMobile ? 72 : 32,
-            right: 32,
-            zIndex: 1100
-          }}
-          onClick={() => setOpenTransaction(true)}
-        >
-          <AddIcon />
-        </Fab>
+        <React.Fragment>
+          <Fab
+            color="secondary"
+            aria-label="transfer"
+            sx={{
+              position: 'fixed',
+              bottom: isMobile ? 144 : 104,
+              right: 32,
+              zIndex: 1100
+            }}
+            onClick={() => setOpenTransfer(true)}
+          >
+            <SyncAltIcon />
+          </Fab>
+          <Fab
+            color="primary"
+            aria-label="add"
+            sx={{
+              position: 'fixed',
+              bottom: isMobile ? 72 : 32,
+              right: 32,
+              zIndex: 1100
+            }}
+            onClick={() => setOpenTransaction(true)}
+          >
+            <AddIcon />
+          </Fab>
+        </React.Fragment>
       )}
 
       {/* Floating Undo Button */}
@@ -190,6 +208,12 @@ export default function Home() {
       <TransactionDialog
         open={openTransaction}
         onClose={() => setOpenTransaction(false)}
+      />
+
+      {/* Transfer Dialog */}
+      <TransferDialog
+        open={openTransfer}
+        onClose={() => setOpenTransfer(false)}
       />
     </Box>
   );

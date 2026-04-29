@@ -40,7 +40,7 @@ export default function TransactionDialog({ open, onClose }: TransactionDialogPr
     const { showSnackbar } = useSnackbar();
     const { registerUndo } = useUndo();
 
-    const [type, setType] = React.useState<'outflow' | 'inflow' | 'transfer'>('outflow');
+    const [type, setType] = React.useState<'outflow' | 'inflow'>('outflow');
     const [formData, setFormData] = React.useState({
         from_category_id: '',
         to_category_id: '',
@@ -71,7 +71,7 @@ export default function TransactionDialog({ open, onClose }: TransactionDialogPr
 
     const handleTypeChange = (
         event: React.MouseEvent<HTMLElement>,
-        newType: 'outflow' | 'inflow' | 'transfer',
+        newType: 'outflow' | 'inflow',
     ) => {
         if (newType !== null) {
             setType(newType);
@@ -90,11 +90,6 @@ export default function TransactionDialog({ open, onClose }: TransactionDialogPr
             return;
         }
 
-        if (type === 'transfer' && !formData.from_category_id) {
-            showSnackbar("Error: Please select a source category.");
-            return;
-        }
-
         // Check for positive input
         const rawAmount = parseFloat(formData.amount);
         if (rawAmount < 0) {
@@ -109,14 +104,6 @@ export default function TransactionDialog({ open, onClose }: TransactionDialogPr
                 return;
             }
 
-            if (type === 'transfer') {
-                const fromCategory = await db.categories.get(formData.from_category_id);
-                if (formData.from_category_id !== 'rta' && (!fromCategory || !fromCategory.account_id)) {
-                    showSnackbar("Error: Selected Source Category is not linked to an account.");
-                    return;
-                }
-            }
-
             const amountInCents = Math.round(rawAmount * 100);
             const transactionId = uuidv4();
 
@@ -128,7 +115,7 @@ export default function TransactionDialog({ open, onClose }: TransactionDialogPr
             await db.transaction('rw', db.accounts, db.transactions, async () => {
                 await db.transactions.add({
                     id: transactionId,
-                    from_category_id: type === 'transfer' ? formData.from_category_id : undefined,
+                    from_category_id: undefined,
                     to_category_id: formData.to_category_id,
                     memo: formData.memo.trim(),
                     amount: signedAmount,
@@ -164,29 +151,7 @@ export default function TransactionDialog({ open, onClose }: TransactionDialogPr
                     >
                         <ToggleButton value="outflow" color="error">Outflow (-)</ToggleButton>
                         <ToggleButton value="inflow" color="success">Inflow (+)</ToggleButton>
-                        <ToggleButton value="transfer" color="primary">Transfer (-&gt;)</ToggleButton>
                     </ToggleButtonGroup>
-
-                    {/* From Category Select */}
-                    {type === 'transfer' && (
-                        <TextField
-                            select
-                            label="Source Category"
-                            name="from_category_id"
-                            value={formData.from_category_id}
-                            onChange={handleChange}
-                            fullWidth
-                        >
-                            <MenuItem value='rta' sx={{ fontWeight: 'bold' }}>
-                                Ready to Assign
-                            </MenuItem>
-                            {categories?.map((cat) => (
-                                <MenuItem key={cat.id} value={cat.id}>
-                                    {cat.name}
-                                </MenuItem>
-                            ))}
-                        </TextField>
-                    )}
 
                     {/* To Category Select */}
                     <TextField
