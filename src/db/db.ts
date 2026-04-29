@@ -44,5 +44,9 @@ db.version(1).stores({
     transactions: 'id, from_category_id, to_category_id, date',
 });
 
+db.version(2).stores({
+    categories: 'id, group_id, account_id, name, order',
+});
+
 export { db };
 export type { Account, CategoryGroup, Category, Transaction };
