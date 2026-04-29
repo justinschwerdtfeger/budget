@@ -105,7 +105,7 @@ export default function TransferDialog({ open, onClose }: TransferDialogProps) {
             }
 
             const percentage = rawPercentage / 100;
-            
+
             // calculate available balance
             let available = 0;
             if (formData.from_category_id === 'rta') {
@@ -126,9 +126,9 @@ export default function TransferDialog({ open, onClose }: TransferDialogProps) {
                 showSnackbar("Error: Source category has no available balance to transfer.");
                 return;
             }
-            
+
             calculatedAmountInCents = Math.round(available * percentage);
-            
+
             if (calculatedAmountInCents <= 0) {
                 showSnackbar("Error: Calculated transfer amount is zero.");
                 return;
@@ -168,7 +168,7 @@ export default function TransferDialog({ open, onClose }: TransferDialogProps) {
                 });
             });
 
-            showSnackbar("Transfer added");
+
             registerUndo("Add Transfer", async () => {
                 await db.transactions.delete(transactionId);
             });

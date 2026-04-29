@@ -110,7 +110,7 @@ export default function Home() {
         mb: isMobile ? '56px' : 0 // Space for bottom nav
       }}>
         {isMobile ? (
-          <Container maxWidth="lg" sx={{ p: 0}}>
+          <Container maxWidth="lg" sx={{ p: 0 }}>
             {renderMobileContent()}
           </Container>
         ) : (

@@ -64,13 +64,13 @@ export default function CategoryDialog({ open, onClose, type, parentId, editItem
                     registerUndo(`Rename Group ${prevName}`, async () => {
                         await db.categoryGroups.update(editItem.id, { name: prevName });
                     });
-                    showSnackbar("Group renamed");
+
                 } else {
                     await db.categories.update(editItem.id, { name, account_id: accountId });
                     registerUndo(`Edit Category ${prevName}`, async () => {
                         await db.categories.update(editItem.id, { name: prevName, account_id: prevAccount });
                     });
-                    showSnackbar("Category updated");
+
                 }
             } else {
                 const newId = uuidv4();
@@ -84,7 +84,7 @@ export default function CategoryDialog({ open, onClose, type, parentId, editItem
                     registerUndo(`Add Group ${name}`, async () => {
                         await db.categoryGroups.delete(newId);
                     });
-                    showSnackbar("Group added");
+
                 } else if (type === 'category' && parentId) {
                     const newItem = {
                         id: newId,
@@ -97,7 +97,7 @@ export default function CategoryDialog({ open, onClose, type, parentId, editItem
                     registerUndo(`Add Category ${name}`, async () => {
                         await db.categories.delete(newId);
                     });
-                    showSnackbar("Category added");
+
                 }
             }
             console.log("Saved successfully");

@@ -54,7 +54,7 @@ export default function AccountList() {
             content: "Delete this account? Transactions will stick around but be orphaned (for now).",
             action: async () => {
                 await db.accounts.delete(account.id);
-                showSnackbar("Account deleted");
+
             }
         });
         setConfirmOpen(true);

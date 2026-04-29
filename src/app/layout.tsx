@@ -17,8 +17,8 @@ export const metadata: Metadata = {
   category: "website",
   generator: "Next.js", // framework used
 
-// the big is here 
-  manifest: "/manifest.json", 
+  // the big is here 
+  manifest: "/manifest.json",
 }
 
 export default function RootLayout(props: { children: React.ReactNode }) {

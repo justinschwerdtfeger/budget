@@ -59,7 +59,7 @@ export default function AddAccountDialog({ open, onClose, editAccount }: AddAcco
                     name: formData.name,
                     type: formData.type as any
                 });
-                showSnackbar("Account updated");
+
                 registerUndo("Edit Account", async () => {
                     await db.accounts.update(editAccount.id, {
                         name: editAccount.name,
@@ -90,7 +90,7 @@ export default function AddAccountDialog({ open, onClose, editAccount }: AddAcco
                     }
                 });
 
-                showSnackbar("Account created");
+
                 registerUndo("Add Account", async () => {
                     await db.transaction('rw', db.accounts, db.transactions, async () => {
                         await db.accounts.delete(acctId);

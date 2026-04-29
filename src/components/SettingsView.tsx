@@ -25,7 +25,7 @@ export default function SettingsView() {
                 await db.accounts.clear();
                 await db.transactions.clear();
             });
-            showSnackbar("Reset Successful");
+
             setTimeout(() => window.location.reload(), 1000);
         } catch (e) {
             console.error("Reset Failed", e);

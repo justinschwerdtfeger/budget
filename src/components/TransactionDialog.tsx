@@ -123,7 +123,7 @@ export default function TransactionDialog({ open, onClose }: TransactionDialogPr
                 });
             });
 
-            showSnackbar("Transaction added");
+
             registerUndo("Add Transaction", async () => {
                 await db.transactions.delete(transactionId);
             });

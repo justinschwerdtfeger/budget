@@ -81,13 +81,13 @@ export default function BudgetView() {
                     registerUndo(`Delete Group ${item.name}`, async () => {
                         await db.categoryGroups.add(item);
                     });
-                    showSnackbar("Group deleted");
+
                 } else {
                     await db.categories.delete(item.id);
                     registerUndo(`Delete Category ${item.name}`, async () => {
                         await db.categories.add(item);
                     });
-                    showSnackbar("Category deleted");
+
                 }
             }
         });
